@@ -119,7 +119,7 @@ const LOAN_SELECT = `
 ipcMain.handle('get-debtors', async () => {
   return await dbAll(`
     SELECT d.*,
-      COUNT(DISTINCT l.id) as loan_count,
+      COUNT(DISTINCT CASE WHEN l.parent_loan_id IS NULL OR COALESCE(l.new_principal,0) > 0 THEN l.id END) as loan_count,
       COALESCE(SUM(CASE WHEN l.status='active' THEN l.repayment_amount - COALESCE((SELECT SUM(r.amount) FROM repayments r WHERE r.loan_id=l.id),0) ELSE 0 END),0) as total_outstanding
     FROM debtors d
     LEFT JOIN loans l ON l.debtor_id = d.id
@@ -309,6 +309,11 @@ ipcMain.handle('delete-repayment', async (_, id) => {
 //    incrementally as repayments come in, capped at the loan's total expected
 //    interest, rather than showing the full expected figure immediately or only
 //    once a loan is fully closed.
+// 3. Extension chains (v1.6.2): a chain (root -> ext -> ext ...) is reported as
+//    ONE loan. An extension only adds to the loan count when new principal was
+//    handed over, and the chain's repayable is what was paid on earlier links
+//    plus the final link's repayment_amount (which already includes the
+//    carried-forward balance), so rolled-over debt isn't counted repeatedly.
 ipcMain.handle('get-analytics', async () => {
   const loans = await dbAll(`
     SELECT l.*, d.name as debtor_name,
@@ -319,75 +324,104 @@ ipcMain.handle('get-analytics', async () => {
   const totalDebtorsRow = await dbGet('SELECT COUNT(*) as v FROM debtors');
   const todayStr = new Date().toISOString().slice(0, 10);
 
+  // Group loans into extension chains (root -> ext -> ext ...). Each chain is
+  // reported as ONE loan; extensions only add to the loan count when new
+  // principal was actually handed over.
+  const byId = new Map(loans.map(l => [l.id, l]));
+  const childOf = new Map();
+  for (const l of loans) {
+    if (l.parent_loan_id && byId.has(l.parent_loan_id)) childOf.set(l.parent_loan_id, l);
+  }
+  const roots = loans.filter(l => !l.parent_loan_id || !byId.has(l.parent_loan_id));
+
   let totalLoaned = 0, totalRepayable = 0, totalRepaid = 0;
   let activeLoans = 0, overdueLoans = 0, closedLoans = 0;
   let totalInterest = 0, interestCollected = 0, totalOutstanding = 0;
   const perDebtorMap = {};
   const monthlyMap = {};
+  const monthEntry = (month) =>
+    (monthlyMap[month] = monthlyMap[month] || { month, loan_count: 0, loaned: 0, interest: 0 });
 
-  for (const l of loans) {
-    // New capital actually disbursed by this loan row (see note above).
-    const newPrincipal = l.parent_loan_id ? (l.new_principal || 0) : l.loan_amount;
-    const newCharges = l.parent_loan_id ? (l.new_charges || 0) : (l.transfer_charges || 0);
-    const newCapital = newPrincipal + newCharges;
+  for (const root of roots) {
+    const chain = [root];
+    const seen = new Set([root.id]);
+    let next = childOf.get(root.id);
+    while (next && !seen.has(next.id)) { chain.push(next); seen.add(next.id); next = childOf.get(next.id); }
+    const terminal = chain[chain.length - 1];
 
-    const expectedInterest = l.repayment_amount - l.loan_amount - l.transfer_charges;
-    const recognizedInterest = Math.max(0, Math.min(expectedInterest, l.total_repaid - l.loan_amount - l.transfer_charges));
+    if (!perDebtorMap[root.debtor_id]) {
+      perDebtorMap[root.debtor_id] = {
+        name: root.debtor_name, loan_count: 0, total_loaned: 0, total_repayable: 0,
+        total_interest: 0, total_repaid: 0, active_loans: 0, closed_loans: 0,
+        outstanding: 0, recovered: 0
+      };
+    }
+    const pd = perDebtorMap[root.debtor_id];
 
-    totalLoaned += newCapital;
-    totalRepayable += l.repayment_amount;
-    totalRepaid += l.total_repaid;
+    let chainCapital = 0, chainRepaid = 0, priorRepaid = 0;
+
+    chain.forEach((l, i) => {
+      const isExt = !!l.parent_loan_id;
+      const newPrincipal = isExt ? (l.new_principal || 0) : l.loan_amount;
+      const newCharges = isExt ? (l.new_charges || 0) : (l.transfer_charges || 0);
+      const newCapital = newPrincipal + newCharges;
+      const countsAsLoan = !isExt || newPrincipal > 0;
+
+      chainCapital += newCapital;
+      chainRepaid += l.total_repaid;
+      if (i < chain.length - 1) priorRepaid += l.total_repaid;
+      // Recovery counts repayments only up to the amount due on each link, so
+      // overpayments never inflate the recovery rate.
+      pd.recovered += Math.min(l.total_repaid, l.repayment_amount);
+
+      if (countsAsLoan) pd.loan_count++;
+
+      if (l.status === 'active') {
+        activeLoans++; pd.active_loans++;
+        if (l.due_date && l.due_date < todayStr) overdueLoans++;
+        const bal = l.repayment_amount - l.total_repaid;
+        if (bal > 0) { totalOutstanding += bal; pd.outstanding += bal; }
+      }
+      if (l.status === 'closed') { closedLoans++; pd.closed_loans++; }
+
+      const month = (l.loan_date || '').slice(0, 7);
+      if (month) {
+        const m = monthEntry(month);
+        m.loaned += newCapital;
+        if (countsAsLoan) m.loan_count++;
+      }
+    });
+
+    // The final link's repayment_amount already includes the balance carried
+    // forward, so only add what was actually paid on the earlier links.
+    const chainRepayable = priorRepaid + terminal.repayment_amount;
+    const expectedInterest = chainRepayable - chainCapital;
+    const recognizedInterest = Math.max(0, Math.min(expectedInterest, chainRepaid - chainCapital));
+
+    totalLoaned += chainCapital;
+    totalRepayable += chainRepayable;
+    totalRepaid += chainRepaid;
     totalInterest += expectedInterest;
     interestCollected += recognizedInterest;
 
-    if (l.status === 'active') {
-      activeLoans++;
-      if (l.due_date && l.due_date !== '' && l.due_date < todayStr) overdueLoans++;
-      const bal = l.repayment_amount - l.total_repaid;
-      if (bal > 0) totalOutstanding += bal;
-    }
-    if (l.status === 'closed') closedLoans++;
-
-    if (!perDebtorMap[l.debtor_id]) {
-      perDebtorMap[l.debtor_id] = {
-        name: l.debtor_name, loan_count: 0, total_loaned: 0, total_repayable: 0,
-        total_interest: 0, total_repaid: 0, active_loans: 0, closed_loans: 0
-      };
-    }
-    const pd = perDebtorMap[l.debtor_id];
-    pd.loan_count++;
-    pd.total_loaned += newCapital;
-    pd.total_repayable += l.repayment_amount;
+    pd.total_loaned += chainCapital;
+    pd.total_repayable += chainRepayable;
+    pd.total_repaid += chainRepaid;
     pd.total_interest += recognizedInterest;
-    pd.total_repaid += l.total_repaid;
-    if (l.status === 'active') pd.active_loans++;
-    if (l.status === 'closed') pd.closed_loans++;
 
-    const month = (l.loan_date || '').slice(0, 7);
-    if (month) {
-      if (!monthlyMap[month]) monthlyMap[month] = { month, loan_count: 0, loaned: 0, interest: 0 };
-      monthlyMap[month].loan_count++;
-      monthlyMap[month].loaned += newCapital;
-      monthlyMap[month].interest += recognizedInterest;
-    }
+    const rootMonth = (root.loan_date || '').slice(0, 7);
+    if (rootMonth) monthEntry(rootMonth).interest += recognizedInterest;
   }
 
   const perDebtor = Object.values(perDebtorMap).sort((a, b) => b.total_interest - a.total_interest);
   const monthly = Object.values(monthlyMap).sort((a, b) => (a.month < b.month ? 1 : -1)).slice(0, 12).reverse();
 
   return {
-    totalLoaned,
-    totalRepayable,
-    totalRepaid,
-    activeLoans,
-    overdueLoans,
-    closedLoans,
+    totalLoaned, totalRepayable, totalRepaid,
+    activeLoans, overdueLoans, closedLoans,
     totalDebtors: totalDebtorsRow.v,
-    totalInterest,
-    interestCollected,
-    totalOutstanding,
-    perDebtor,
-    monthly
+    totalInterest, interestCollected, totalOutstanding,
+    perDebtor, monthly
   };
 });
 

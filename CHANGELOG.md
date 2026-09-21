@@ -4,6 +4,43 @@ All notable changes to LoanMate will be documented in this file.
 
 ---
 
+## [1.6.4] — Recovery Capped at Amount Due
+
+### Changed
+- **Per-debtor Recovery is now capped at the amount due**: repayments count towards recovery only up to each loan's repayable amount, so overpayments no longer inflate the percentage.
+- **Removed the "+K credit" tag** from the Analytics Per-Debtor Breakdown's Outstanding column (introduced in 1.6.3). The column now simply shows the balance still owed on active loans. Overpayment credit is still shown on the Loan History and Loan Detail views.
+
+### Notes
+- `get-analytics` now returns `recovered` per debtor (replacing the short-lived `credit` field). The Repaid column still shows the actual amount paid.
+
+---
+
+## [1.6.3] — Overpayment Credit No Longer Reduces Amount Owed
+
+### Fixed
+- **Analytics "Outstanding / Credit" no longer nets overpayment credit against what is owed.** Previously it was `total repayable − total repaid`, so a K430 overpayment on a closed loan reduced the debtor's real K2,500 balance to K2,070. Outstanding now shows the actual balance still owed on active loans, and any overpayment credit is shown separately beneath it as a "+K credit" tag.
+
+### Notes
+- `get-analytics` now returns `outstanding` and `credit` per debtor; the Per-Debtor Breakdown table uses them. Totals elsewhere are unchanged.
+- Bad-debt and extended loans don't count towards Outstanding (consistent with the Dashboard).
+
+---
+
+## [1.6.2] — Extension Chains Count as One Loan
+
+### Fixed
+- **Loan extensions no longer inflate the loan count.** An extension now only counts as a new loan if new principal was actually handed over (`new_principal > 0`). Pure due-date extensions or rollovers of the outstanding balance no longer add to the count.
+  - Applies to the Debtors page **Total Loans** column and the Analytics per-debtor **Loans** column and Monthly Loan Activity loan counts.
+- **Total Repayable, Outstanding/Credit and Recovery are no longer inflated by extensions.** Each extension's repayment amount already includes the balance carried forward, so summing every link counted the same debt several times. Analytics now treats each extension chain as one loan: repayable = amounts repaid on earlier links + the final link's repayment amount.
+  - Example: a debtor with 4 real loans and 5 date/balance extensions previously showed 9 loans, K17,800 repayable and 36% recovery; he now shows 4 loans and correct repayable/recovery figures.
+- Interest earned is now recognized per chain rather than per link, and attributed to the month the chain started.
+
+### Notes
+- Reporting-only change (`get-debtors` and `get-analytics` in `main.js`); no schema, IPC signature, `index.html` or `preload.js` changes. Loan History and the Loan Detail chain view still list every link as an audit trail.
+- Extensions created before v1.6.0 have `new_principal = 0` and are treated as pure extensions. If cash was added on one of those, set `loans.new_principal` / `new_charges` on that row manually to have it counted as a new loan.
+
+---
+
 ## [1.6.1] — Active Capital Out Reflects Partial Repayments
 
 ### Fixed

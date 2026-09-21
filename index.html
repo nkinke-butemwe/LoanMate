@@ -1139,20 +1139,13 @@ async function loadAnalytics() {
 
   // Per debtor table — with overpayment awareness
   document.getElementById('analytics-debtor-tbody').innerHTML = data.perDebtor.length ? data.perDebtor.map(d => {
-    const outstanding = d.total_repayable - d.total_repaid;
-    const isCredit = outstanding < 0;
-    const recovery = d.total_repayable > 0 ? Math.min(100, (d.total_repaid / d.total_repayable * 100)).toFixed(0) : 0;
-    const rawRecovery = d.total_repayable > 0 ? (d.total_repaid / d.total_repayable * 100) : 0;
-    const rPct = parseInt(recovery);
-
-    let outstandingCell;
-    if (isCredit) {
-      outstandingCell = `<span class="overpay-tag">+${fmt(Math.abs(outstanding))} credit</span>`;
-    } else {
-      outstandingCell = `<span class="${outstanding > 0 ? 'text-red' : 'text-green'} fw-700">${fmt(outstanding)}</span>`;
-    }
-
-    const fillClass = rawRecovery > 100 ? 'fill-purple' : rPct >= 80 ? 'fill-green' : rPct >= 40 ? 'fill-yellow' : 'fill-red';
+    // Outstanding = what is actually still owed on active loans. Overpayments
+    // never net against it, and recovery is capped at the amount due.
+    const outstanding = d.outstanding || 0;
+    const rawRecovery = d.total_repayable > 0 ? Math.min(100, (d.recovered / d.total_repayable * 100)) : 0;
+    const rPct = Math.round(rawRecovery);
+    const outstandingCell = `<span class="${outstanding > 0 ? 'text-red' : 'text-green'} fw-700">${fmt(outstanding)}</span>`;
+    const fillClass = rPct >= 80 ? 'fill-green' : rPct >= 40 ? 'fill-yellow' : 'fill-red';
 
     return `<tr>
       <td class="fw-700">${esc(d.name)}</td>
@@ -1163,8 +1156,8 @@ async function loadAnalytics() {
       <td class="text-right text-green">${fmt(d.total_repaid)}</td>
       <td class="text-right">${outstandingCell}</td>
       <td style="min-width:110px">
-        <div style="font-size:10px;color:${rawRecovery > 100 ? 'var(--purple)' : 'var(--text2)'};margin-bottom:2px">${Math.round(rawRecovery)}%${rawRecovery > 100 ? ' ⬆ Overpaid' : ''}</div>
-        <div class="progress-bar"><div class="fill ${fillClass}" style="width:${Math.min(100,rPct)}%"></div></div>
+        <div style="font-size:10px;color:var(--text2);margin-bottom:2px">${rPct}%</div>
+        <div class="progress-bar"><div class="fill ${fillClass}" style="width:${rPct}%"></div></div>
       </td>
     </tr>`;
   }).join('') : `<tr><td colspan="8"><div class="empty-state" style="padding:20px"><p>No data yet</p></div></td></tr>`;
