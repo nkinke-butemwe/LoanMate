@@ -4,6 +4,22 @@ All notable changes to LoanMate will be documented in this file.
 
 ---
 
+## [1.7.0] — Portfolio Growth Graph
+
+### Changed
+- **Analytics "Monthly Loan Activity" chart replaced by a Portfolio Growth graph** showing cumulative *actual profit* over time.
+  - **Points**: each repayment that adds profit is a point, placed on the actual repayment date. Hovering shows the debtor, the payment, and the maths (e.g. `3,000 repaid − 2,500 principal − 10 charges` → `+490 growth`).
+  - **Extension chains are traced as one loan.** Nothing counts as growth until cumulative repayments across the chain exceed the capital put in (principal + transfer charges); after that each payment adds profit, capped at the chain's expected interest. Rolled-over balances are never counted as new principal, so a K1,000 loan extended to K3,000 and finally paid grows the graph by K2,500 in total.
+  - **Bad debt** is a point on the loan's due date that drops the graph by the unrecovered capital (principal + charges − anything repaid). Bad-debt loans with no due date fall back to the last repayment date, then the loan date.
+  - **Adjustable period**: From / To date pickers plus Default, Last 3M, Last 6M and Last 1Y presets. The graph always starts from K0 at the beginning of the chosen period.
+  - **Default period**: due date of the earliest loan → due date of the latest paid-in loan, widened if needed so no point falls outside the default view.
+
+### Notes
+- `get-analytics` no longer returns `monthly`; it now returns `portfolio: { events, defaultFrom, defaultTo }`.
+- No schema, `preload.js` or stored-data changes.
+
+---
+
 ## [1.6.4] — Recovery Capped at Amount Due
 
 ### Changed

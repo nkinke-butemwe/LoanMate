@@ -323,6 +323,12 @@ ipcMain.handle('get-analytics', async () => {
   `);
   const totalDebtorsRow = await dbGet('SELECT COUNT(*) as v FROM debtors');
   const todayStr = new Date().toISOString().slice(0, 10);
+  const allRepayments = await dbAll('SELECT id, loan_id, amount, repayment_date FROM repayments');
+  const repsByLoan = new Map();
+  for (const r of allRepayments) {
+    if (!repsByLoan.has(r.loan_id)) repsByLoan.set(r.loan_id, []);
+    repsByLoan.get(r.loan_id).push(r);
+  }
 
   // Group loans into extension chains (root -> ext -> ext ...). Each chain is
   // reported as ONE loan; extensions only add to the loan count when new
@@ -338,9 +344,9 @@ ipcMain.handle('get-analytics', async () => {
   let activeLoans = 0, overdueLoans = 0, closedLoans = 0;
   let totalInterest = 0, interestCollected = 0, totalOutstanding = 0;
   const perDebtorMap = {};
-  const monthlyMap = {};
-  const monthEntry = (month) =>
-    (monthlyMap[month] = monthlyMap[month] || { month, loan_count: 0, loaned: 0, interest: 0 });
+  // Portfolio Growth events (v1.7.0): profit gains at repayment dates and
+  // bad-debt write-offs at due dates.
+  const portfolioEvents = [];
 
   for (const root of roots) {
     const chain = [root];
@@ -358,7 +364,7 @@ ipcMain.handle('get-analytics', async () => {
     }
     const pd = perDebtorMap[root.debtor_id];
 
-    let chainCapital = 0, chainRepaid = 0, priorRepaid = 0;
+    let chainCapital = 0, chainRepaid = 0, priorRepaid = 0, chainPrincipal = 0, chainCharges = 0;
 
     chain.forEach((l, i) => {
       const isExt = !!l.parent_loan_id;
@@ -368,6 +374,8 @@ ipcMain.handle('get-analytics', async () => {
       const countsAsLoan = !isExt || newPrincipal > 0;
 
       chainCapital += newCapital;
+      chainPrincipal += newPrincipal;
+      chainCharges += newCharges;
       chainRepaid += l.total_repaid;
       if (i < chain.length - 1) priorRepaid += l.total_repaid;
       // Recovery counts repayments only up to the amount due on each link, so
@@ -383,13 +391,6 @@ ipcMain.handle('get-analytics', async () => {
         if (bal > 0) { totalOutstanding += bal; pd.outstanding += bal; }
       }
       if (l.status === 'closed') { closedLoans++; pd.closed_loans++; }
-
-      const month = (l.loan_date || '').slice(0, 7);
-      if (month) {
-        const m = monthEntry(month);
-        m.loaned += newCapital;
-        if (countsAsLoan) m.loan_count++;
-      }
     });
 
     // The final link's repayment_amount already includes the balance carried
@@ -409,19 +410,67 @@ ipcMain.handle('get-analytics', async () => {
     pd.total_repaid += chainRepaid;
     pd.total_interest += recognizedInterest;
 
-    const rootMonth = (root.loan_date || '').slice(0, 7);
-    if (rootMonth) monthEntry(rootMonth).interest += recognizedInterest;
+    // ── Portfolio growth events ──
+    // Repayments across the whole chain are replayed in date order. Nothing
+    // counts as growth until cumulative repayments exceed the capital put in
+    // (principal + charges); after that each payment adds profit, capped at the
+    // chain's expected interest. Placed on the actual repayment date.
+    const chainReps = [];
+    chain.forEach(l => (repsByLoan.get(l.id) || []).forEach(r => chainReps.push({ ...r, due_date: l.due_date })));
+    chainReps.sort((a, b) => a.repayment_date < b.repayment_date ? -1 : a.repayment_date > b.repayment_date ? 1 : a.id - b.id);
+    let cumRepaid = 0, prevProfit = 0;
+    for (const r of chainReps) {
+      cumRepaid += r.amount;
+      const profit = Math.max(0, Math.min(expectedInterest, cumRepaid - chainCapital));
+      const delta = profit - prevProfit;
+      if (delta > 0.005) {
+        portfolioEvents.push({
+          type: 'profit', date: r.repayment_date, due_date: r.due_date || '',
+          delta, debtor: root.debtor_name, paid: r.amount, repaid_to_date: cumRepaid,
+          principal: chainPrincipal, charges: chainCharges, capital: chainCapital,
+          repayable: chainRepayable, chain_links: chain.length
+        });
+      }
+      prevProfit = profit;
+    }
+    // Bad debt drops the graph by the unrecovered capital, on the due date.
+    if (terminal.status === 'bad_debt') {
+      const unrecovered = chainCapital - chainRepaid;
+      if (unrecovered > 0.005) {
+        const lastRep = chainReps.length ? chainReps[chainReps.length - 1].repayment_date : '';
+        portfolioEvents.push({
+          type: 'bad_debt', date: terminal.due_date || lastRep || terminal.loan_date, due_date: terminal.due_date || '',
+          delta: -unrecovered, debtor: root.debtor_name, paid: 0, repaid_to_date: chainRepaid,
+          principal: chainPrincipal, charges: chainCharges, capital: chainCapital,
+          repayable: chainRepayable, chain_links: chain.length
+        });
+      }
+    }
   }
 
   const perDebtor = Object.values(perDebtorMap).sort((a, b) => b.total_interest - a.total_interest);
-  const monthly = Object.values(monthlyMap).sort((a, b) => (a.month < b.month ? 1 : -1)).slice(0, 12).reverse();
+  portfolioEvents.sort((a, b) => (a.date < b.date ? -1 : a.date > b.date ? 1 : 0));
+
+  // Default period: due date of the earliest loan -> due date of the latest
+  // paid-in loan, widened if needed so no event falls outside the default view.
+  let defaultFrom = null, defaultTo = null;
+  if (portfolioEvents.length) {
+    const firstLoan = [...loans].sort((a, b) => a.loan_date < b.loan_date ? -1 : a.loan_date > b.loan_date ? 1 : a.id - b.id)[0];
+    const dates = portfolioEvents.map(e => e.date);
+    const lastPaidDue = portfolioEvents.filter(e => e.type === 'profit').map(e => e.due_date || e.date).sort().pop() || dates[dates.length - 1];
+    defaultFrom = (firstLoan && (firstLoan.due_date || firstLoan.loan_date)) || dates[0];
+    defaultTo = lastPaidDue;
+    if (dates[0] < defaultFrom) defaultFrom = dates[0];
+    if (dates[dates.length - 1] > defaultTo) defaultTo = dates[dates.length - 1];
+  }
 
   return {
     totalLoaned, totalRepayable, totalRepaid,
     activeLoans, overdueLoans, closedLoans,
     totalDebtors: totalDebtorsRow.v,
     totalInterest, interestCollected, totalOutstanding,
-    perDebtor, monthly
+    perDebtor,
+    portfolio: { events: portfolioEvents, defaultFrom, defaultTo }
   };
 });
 

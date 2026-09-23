@@ -239,6 +239,10 @@ textarea { resize: vertical; min-height: 65px; }
 .filter-tab.tab-extended.active { background: var(--info); border-color: var(--info); color: white; }
 .filter-tab.tab-baddebt.active { background: var(--baddebt); border-color: var(--baddebt); color: white; }
 
+/* ── PORTFOLIO GROWTH TOOLTIP ── */
+.pg-tooltip { position: absolute; display: none; z-index: 20; pointer-events: none; background: var(--surface3); border: 1px solid var(--border); border-radius: var(--radius); padding: 9px 12px; font-size: 12px; line-height: 1.6; min-width: 230px; box-shadow: 0 6px 18px rgba(0,0,0,0.45); }
+.pg-tooltip .pg-tip-h { font-weight: 700; margin-bottom: 3px; }
+
 /* ── UTILITIES ── */
 .divider { border: none; border-top: 1px solid var(--border); margin: 14px 0; }
 .flex-row { display: flex; align-items: center; gap: 8px; }
@@ -456,8 +460,21 @@ textarea { resize: vertical; min-height: 65px; }
         </div>
       </div>
       <div class="card mb-16">
-        <div class="card-title">Monthly Loan Activity (Last 12 months)</div>
-        <div id="analytics-monthly-chart"></div>
+        <div class="card-title">Portfolio Growth <span style="font-size:10px;text-transform:none;letter-spacing:0">cumulative actual profit &middot; hover a point for details</span></div>
+        <div class="flex-row mb-12" style="gap:8px;flex-wrap:wrap">
+          <label style="margin:0">From</label>
+          <input type="date" id="pg-from" style="width:auto" onchange="onPortfolioDatesChanged()">
+          <label style="margin:0">To</label>
+          <input type="date" id="pg-to" style="width:auto" onchange="onPortfolioDatesChanged()">
+          <div class="filter-tabs" id="pg-presets">
+            <div class="filter-tab active" data-preset="default" onclick="setPortfolioPreset('default')">Default</div>
+            <div class="filter-tab" data-preset="3m" onclick="setPortfolioPreset('3m')">Last 3M</div>
+            <div class="filter-tab" data-preset="6m" onclick="setPortfolioPreset('6m')">Last 6M</div>
+            <div class="filter-tab" data-preset="1y" onclick="setPortfolioPreset('1y')">Last 1Y</div>
+          </div>
+        </div>
+        <div id="pg-summary" class="fs-12 text-muted mb-8"></div>
+        <div id="analytics-portfolio-chart" style="position:relative"></div>
       </div>
       <div class="card">
         <div class="card-title">Per-Debtor Breakdown</div>
@@ -1134,8 +1151,8 @@ async function loadAnalytics() {
     </div>`;
   }).join('') : '<div class="empty-state" style="padding:20px"><p>No data yet</p></div>';
 
-  // Monthly chart
-  renderMonthlyChart(data.monthly);
+  // Portfolio growth chart
+  initPortfolio(data.portfolio);
 
   // Per debtor table — with overpayment awareness
   document.getElementById('analytics-debtor-tbody').innerHTML = data.perDebtor.length ? data.perDebtor.map(d => {
@@ -1163,61 +1180,134 @@ async function loadAnalytics() {
   }).join('') : `<tr><td colspan="8"><div class="empty-state" style="padding:20px"><p>No data yet</p></div></td></tr>`;
 }
 
-function renderMonthlyChart(monthly) {
-  const wrap = document.getElementById('analytics-monthly-chart');
-  if (!monthly || !monthly.length) { wrap.innerHTML = '<div class="empty-state" style="padding:20px"><p>No monthly data yet</p></div>'; return; }
-  const W = 700, H = 140, PAD = 40, BOTTOM = 30;
-  const maxLoaned = Math.max(...monthly.map(m => m.loaned), 1);
-  const maxInterest = Math.max(...monthly.map(m => m.interest), 1);
-  const maxVal = Math.max(maxLoaned, maxInterest);
-  const n = monthly.length;
-  const step = (W - PAD * 2) / Math.max(n - 1, 1);
+let portfolioData = { events: [], defaultFrom: null, defaultTo: null };
+const pgMs = (d) => new Date(d + 'T00:00:00').getTime();
+const pgDate = (ms) => { const d = new Date(ms); return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'); };
+const pgShort = (n) => (n < 0 ? '−' : '') + Number(Math.abs(n)).toLocaleString('en-ZM', { maximumFractionDigits: 0 });
 
-  const pts = (key) => monthly.map((m, i) => {
-    const val = key === 'loaned' ? m.loaned : m.interest;
-    const x = PAD + i * step;
-    const y = PAD + (1 - val / maxVal) * (H - PAD - BOTTOM);
-    return `${x},${y}`;
-  }).join(' ');
+function initPortfolio(p) {
+  portfolioData = p || { events: [], defaultFrom: null, defaultTo: null };
+  setPortfolioPreset('default');
+}
 
-  const ptsFill = (key) => {
-    const first = monthly.map((m, i) => {
-      const val = key === 'loaned' ? m.loaned : m.interest;
-      const x = PAD + i * step;
-      const y = PAD + (1 - val / maxVal) * (H - PAD - BOTTOM);
-      return `${x},${y}`;
-    });
-    return `${PAD},${H - BOTTOM} ` + first.join(' ') + ` ${PAD + (n-1)*step},${H - BOTTOM}`;
+function setPortfolioPreset(preset) {
+  let from = '', to = '';
+  if (preset === 'default') {
+    from = portfolioData.defaultFrom || '';
+    to = portfolioData.defaultTo || '';
+  } else {
+    const months = { '3m': 3, '6m': 6, '1y': 12 }[preset];
+    const end = new Date(), start = new Date();
+    start.setMonth(start.getMonth() - months);
+    from = pgDate(start.getTime());
+    to = pgDate(end.getTime());
+  }
+  document.getElementById('pg-from').value = from;
+  document.getElementById('pg-to').value = to;
+  document.querySelectorAll('#pg-presets .filter-tab').forEach(t => t.classList.toggle('active', t.dataset.preset === preset));
+  renderPortfolioChart();
+}
+
+function onPortfolioDatesChanged() {
+  document.querySelectorAll('#pg-presets .filter-tab').forEach(t => t.classList.remove('active'));
+  renderPortfolioChart();
+}
+
+function pgTipHtml(e, running) {
+  if (e.type === 'bad_debt') {
+    return `<div class="pg-tip-h">💀 ${esc(e.debtor)} — ${e.date}</div>
+      <div>Written off as bad debt</div>
+      <div class="text-muted">${fmt(e.capital)} capital − ${fmt(e.repaid_to_date)} repaid</div>
+      <div class="text-red fw-700">−${fmt(Math.abs(e.delta))} unrecovered</div>
+      <div class="text-muted">Portfolio: ${fmt(running)}</div>`;
+  }
+  const ext = e.chain_links > 1 ? ` <span class="text-muted">(after ${e.chain_links - 1} extension${e.chain_links > 2 ? 's' : ''})</span>` : '';
+  return `<div class="pg-tip-h">${esc(e.debtor)} — ${e.date}</div>
+    <div>Payment: ${fmt(e.paid)}${ext}</div>
+    <div class="text-muted">${fmt(e.repaid_to_date)} repaid − ${fmt(e.principal)} principal − ${fmt(e.charges)} charges</div>
+    <div class="text-green fw-700">+${fmt(e.delta)} growth</div>
+    <div class="text-muted">Portfolio: ${fmt(running)}</div>`;
+}
+
+function renderPortfolioChart() {
+  const wrap = document.getElementById('analytics-portfolio-chart');
+  const summary = document.getElementById('pg-summary');
+  const from = document.getElementById('pg-from').value;
+  const to = document.getElementById('pg-to').value;
+  const emptyMsg = (msg) => { wrap.innerHTML = `<div class="empty-state" style="padding:20px"><p>${msg}</p></div>`; summary.innerHTML = ''; };
+
+  if (!portfolioData.events.length) return emptyMsg('No repayments or bad debts recorded yet');
+  if (!from || !to || from > to) return emptyMsg('Choose a valid period (From must not be after To)');
+
+  // Baseline is K0 at the start of the chosen period.
+  const evs = portfolioData.events.filter(e => e.date >= from && e.date <= to);
+  let cum = 0;
+  const pts = evs.map(e => { cum += e.delta; return { e, x: pgMs(e.date), y: cum }; });
+
+  const gained = evs.filter(e => e.type === 'profit').reduce((s, e) => s + e.delta, 0);
+  const lost = evs.filter(e => e.type === 'bad_debt').reduce((s, e) => s + e.delta, 0);
+  summary.innerHTML = `Net growth in period: <strong class="${cum >= 0 ? 'text-green' : 'text-red'}">${fmt(cum)}</strong>` +
+    ` &nbsp;·&nbsp; Profit: <strong class="text-green">+${fmt(gained)}</strong>` +
+    ` &nbsp;·&nbsp; Bad debt: <strong class="text-red">${fmt(lost)}</strong>` +
+    ` &nbsp;·&nbsp; ${evs.length} point${evs.length === 1 ? '' : 's'}`;
+
+  const W = 700, H = 250, PL = 58, PR = 18, PT = 16, PB = 30;
+  const x0 = pgMs(from);
+  const x1 = Math.max(pgMs(to), x0 + 86400000);
+  const ys = pts.map(p => p.y).concat([0]);
+  let yMin = Math.min(...ys), yMax = Math.max(...ys);
+  if (yMax === yMin) yMax = yMin + 1;
+  const padY = (yMax - yMin) * 0.1;
+  yMax += padY;
+  if (yMin < 0) yMin -= padY;
+  const sx = (x) => PL + (x - x0) / (x1 - x0) * (W - PL - PR);
+  const sy = (y) => PT + (1 - (y - yMin) / (yMax - yMin)) * (H - PT - PB);
+
+  const line = [{ x: x0, y: 0 }, ...pts, { x: x1, y: cum }];
+  const linePts = line.map(p => `${sx(p.x).toFixed(1)},${sy(p.y).toFixed(1)}`).join(' ');
+  const areaPts = `${linePts} ${sx(x1).toFixed(1)},${sy(0).toFixed(1)} ${sx(x0).toFixed(1)},${sy(0).toFixed(1)}`;
+
+  let grid = '';
+  for (let i = 0; i <= 4; i++) {
+    const v = yMin + (yMax - yMin) * i / 4;
+    grid += `<line x1="${PL}" x2="${W - PR}" y1="${sy(v)}" y2="${sy(v)}" stroke="#2a4f4f" stroke-width="0.5"/>` +
+            `<text x="${PL - 6}" y="${sy(v) + 3}" text-anchor="end" fill="#8ab3b3" font-size="9">${pgShort(v)}</text>`;
+  }
+  for (let i = 0; i <= 4; i++) {
+    const xv = x0 + (x1 - x0) * i / 4;
+    grid += `<text x="${sx(xv)}" y="${H - 10}" text-anchor="${i === 0 ? 'start' : i === 4 ? 'end' : 'middle'}" fill="#8ab3b3" font-size="9">${pgDate(xv)}</text>`;
+  }
+  const zero = `<line x1="${PL}" x2="${W - PR}" y1="${sy(0)}" y2="${sy(0)}" stroke="#8ab3b3" stroke-width="1" stroke-dasharray="4 3"/>`;
+
+  const dots = pts.map((p, i) => {
+    const c = p.e.type === 'bad_debt' ? '#e74c3c' : '#2ecc71';
+    return `<circle cx="${sx(p.x)}" cy="${sy(p.y)}" r="4" fill="${c}" stroke="#0a1a1a" stroke-width="1.5"/>` +
+           `<circle cx="${sx(p.x)}" cy="${sy(p.y)}" r="10" fill="transparent" data-i="${i}" style="cursor:pointer"/>`;
+  }).join('');
+
+  wrap.innerHTML = `<div class="pg-tooltip" id="pg-tooltip"></div>
+    <svg viewBox="0 0 ${W} ${H}" width="100%" xmlns="http://www.w3.org/2000/svg" style="overflow:visible">
+      <defs><linearGradient id="pgfill" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#2ecc71" stop-opacity="0.28"/><stop offset="100%" stop-color="#2ecc71" stop-opacity="0.02"/></linearGradient></defs>
+      ${grid}${zero}
+      <polygon points="${areaPts}" fill="url(#pgfill)"/>
+      <polyline points="${linePts}" fill="none" stroke="#2ecc71" stroke-width="2" stroke-linejoin="round"/>
+      ${dots}
+    </svg>`;
+
+  const tip = document.getElementById('pg-tooltip');
+  wrap.onmousemove = (ev) => {
+    const t = ev.target.closest ? ev.target.closest('[data-i]') : null;
+    if (!t) { tip.style.display = 'none'; return; }
+    const p = pts[+t.dataset.i];
+    tip.innerHTML = pgTipHtml(p.e, p.y);
+    tip.style.display = 'block';
+    const r = wrap.getBoundingClientRect();
+    let left = ev.clientX - r.left + 14;
+    if (left + tip.offsetWidth > r.width) left = ev.clientX - r.left - tip.offsetWidth - 14;
+    tip.style.left = Math.max(0, left) + 'px';
+    tip.style.top = Math.max(0, ev.clientY - r.top - tip.offsetHeight - 10) + 'px';
   };
-
-  const dots = (key, color) => monthly.map((m, i) => {
-    const val = key === 'loaned' ? m.loaned : m.interest;
-    const x = PAD + i * step;
-    const y = PAD + (1 - val / maxVal) * (H - PAD - BOTTOM);
-    return `<circle cx="${x}" cy="${y}" r="3" fill="${color}" title="${m.month}: ${fmt(val)}"/>`;
-  }).join('');
-
-  const labels = monthly.map((m, i) => {
-    const x = PAD + i * step;
-    const shortMonth = m.month ? m.month.slice(2) : '';
-    return `<text x="${x}" y="${H - 8}" text-anchor="middle" fill="#8ab3b3" font-size="9">${shortMonth}</text>`;
-  }).join('');
-
-  wrap.innerHTML = `<div class="mini-chart-wrap"><svg viewBox="0 0 ${W} ${H}" width="100%" xmlns="http://www.w3.org/2000/svg" style="overflow:visible">
-    <defs>
-      <linearGradient id="gl" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#3498db" stop-opacity="0.3"/><stop offset="100%" stop-color="#3498db" stop-opacity="0"/></linearGradient>
-      <linearGradient id="gg" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#2ecc71" stop-opacity="0.3"/><stop offset="100%" stop-color="#2ecc71" stop-opacity="0"/></linearGradient>
-    </defs>
-    <polygon points="${ptsFill('loaned')}" fill="url(#gl)"/>
-    <polygon points="${ptsFill('interest')}" fill="url(#gg)"/>
-    <polyline points="${pts('loaned')}" fill="none" stroke="#3498db" stroke-width="2" stroke-linejoin="round"/>
-    <polyline points="${pts('interest')}" fill="none" stroke="#2ecc71" stroke-width="2" stroke-linejoin="round"/>
-    ${dots('loaned', '#3498db')}
-    ${dots('interest', '#2ecc71')}
-    ${labels}
-    <text x="8" y="14" fill="#3498db" font-size="9">● Loaned</text>
-    <text x="70" y="14" fill="#2ecc71" font-size="9">● Interest</text>
-  </svg></div>`;
+  wrap.onmouseleave = () => { tip.style.display = 'none'; };
 }
 
 // ════════════════════════════════════════════════
