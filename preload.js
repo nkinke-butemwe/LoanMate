@@ -14,6 +14,8 @@ contextBridge.exposeInMainWorld('api', {
   addLoan: (data) => ipcRenderer.invoke('add-loan', data),
   closeLoan: (id) => ipcRenderer.invoke('close-loan', id),
   deleteLoan: (id) => ipcRenderer.invoke('delete-loan', id),
+  closeLoanEarly: (id, due_date) => ipcRenderer.invoke('close-loan-early', { id, due_date }),
+  setLoanDueDate: (id, due_date) => ipcRenderer.invoke('set-loan-due-date', { id, due_date }),
 
   // Loan Extensions
   extendLoan: (data) => ipcRenderer.invoke('extend-loan', data),
@@ -30,6 +32,14 @@ contextBridge.exposeInMainWorld('api', {
 
   // Analytics
   getAnalytics: () => ipcRenderer.invoke('get-analytics'),
+
+  // Loan Ledger export (PNG / PDF)
+  exportLedger: (data) => ipcRenderer.invoke('export-ledger', data),
+
+  // Saved loan chains (Chain Calculator)
+  getChains: () => ipcRenderer.invoke('get-chains'),
+  saveChain: (data) => ipcRenderer.invoke('save-chain', data),
+  deleteChain: (id) => ipcRenderer.invoke('delete-chain', id),
 
   // Versions
   versions: {

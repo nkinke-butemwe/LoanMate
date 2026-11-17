@@ -4,6 +4,193 @@ All notable changes to LoanMate will be documented in this file.
 
 ---
 
+## [1.14.0] — Running chains (open-ended repayment date)
+
+### Added
+- **Running chain** option on the Chain Calculator (tick-box under the Proposed Repayment Date). With it on there is no fixed repayment date: the chain is calculated **up to today**, so every day that passes adds another day of interest to each row and the amount due moves up on its own.
+  - Use it for debtors who say they'll pay "whenever": add the loan to a chain, save it, and open it any day to see exactly what is owed that day.
+  - The date box is locked to today while running; the Chain Breakdown heading shows "running · as of today (dd-mm-yyyy)". The calculator also rolls over automatically if left open past midnight.
+  - Un-tick it to go back to a fixed proposed repayment date.
+- **Saved running chains** are stored with `running: true` (no repayment date) and always recalculate against today's date, including the totals in the saved-chains sidebar (marked "🔄 Running · to today") and **Send to Ledger** (today becomes the Due Date).
+
+### Notes
+- Frontend-only change (`index.html`); the flag lives inside the existing chain JSON, so no schema, IPC or `main.js` changes. Existing fixed-date chains are unaffected. Version bumped to 1.14.0 in `package.json`.
+
+
+## [1.13.0] — Adjustable daily rate on the Chain Calculator
+
+### Added
+- **Daily Rate (% / day)** field on the Chain Calculator, next to the repayment date. It defaults to the system rate (**1.43% a day**) and a hint underneath says so; leave it empty to keep using the default.
+  - Enter any other rate (e.g. `1` or `2.5`) to calculate that chain at the custom rate. Every row's Rate, Amount Due and the Chain Breakdown totals update live.
+  - Clearing the field returns to the default 1.43%.
+- A custom rate is **saved with the chain** and restored when the chain is loaded; the saved-chains sidebar totals and **Send to Ledger** also use it. Chains saved without a rate (including all earlier ones) keep using the default 1.43%.
+
+### Notes
+- Frontend-only change (`index.html`); the rate is stored inside the existing chain JSON, so there are no schema, IPC or `main.js` changes. Single-loan calculator and the rest of the app still use 1.43%. Version bumped to 1.13.0 in `package.json`.
+
+
+## [1.12.0] — Early payment closes the loan
+
+### Added
+- **Early payment prompt**: when a recorded payment is **larger than the amount loaned** and is dated **before the loan's due date**, LoanMate asks "Close this loan?".
+  - **Yes**: the loan is **settled at what was actually paid**: status becomes Closed, the **repayable amount is set to the total repaid**, and the **due date is changed to the payment date** (so the loan period ends the day the debtor paid). Balance becomes 0, progress 100%, and the unpaid remainder is *not* treated as bad debt or an outstanding shortfall; collection rate and recovery reflect 100%.
+    - Example: K500 loan, K1,000 repayable in two weeks; K800 paid a week in → repayable K800, interest K300, balance K0.
+  - **No**: the loan stays active and nothing else changes.
+  - If the payment already settles the loan in full (it auto-closes), no question is asked; the due date is just moved to the payment date and the repayable amount is left alone (so any overpayment credit is kept).
+- New IPC handlers `close-loan-early` and `set-loan-due-date`, with preload methods `closeLoanEarly(id, due_date)` and `setLoanDueDate(id, due_date)`.
+
+### Notes
+- Loans with no due date never trigger the prompt. Because the due date moves to the payment date, the payment is never flagged as late.
+- Version bumped to 1.12.0 in `package.json`.
+
+
+## [1.11.0] — Payment Schedule calendar & relative due dates
+
+### Added
+- **Payment Schedule** on the Dashboard: a switch-arrows (⇄) icon next to the "Active Loans" heading flips the card into a month calendar. The icon matches the heading colour and turns green on hover with a "Payment Schedule" tooltip; once switched, the same icon sits next to the "Payment Schedule" heading and flips back ("Active Loans" tooltip).
+  - Each day with money expected shows the total below the date (e.g. `8K`, `5.8K`); days with nothing due stay blank. If several loans fall due on one day the figure is their sum.
+  - Today is highlighted. Days containing overdue balances show their amount in red.
+  - Hovering a day lists every payment due that day (debtor, amount, an "Overdue" / "Due today" tag) with a total when there is more than one.
+  - ‹ › buttons browse months; a footer shows the month's expected total.
+  - The expected amount per loan is its remaining balance, counted on its due date. Loans with no due date aren't shown (the footer says how many).
+
+### Changed
+- **Active Loans card (Dashboard)**: due dates within the coming week read "Today", "Tomorrow" or the weekday name (e.g. "Friday"); anything further out, or already past, keeps the dd-mm-yyyy date.
+- **Sidebar footer** now reads avatar "L", "Lukavo Business", "Butemwe Nkinke".
+
+### Notes
+- Frontend-only change (`index.html`); no schema, IPC or `main.js` changes. Version bumped to 1.11.0 in `package.json`.
+
+
+## [1.10.1] — Chain Calculator polish
+
+### Changed
+- Debtor field in the Chain Calculator is now a themed dropdown (matching arrow, menu and hover colours) instead of the native browser datalist; selecting a name no longer turns the box white.
+
+### Added
+- **✖ Close Chain** button: takes the loaded chain off the workspace and resets the editor. Nothing is deleted — saved chains stay in the sidebar (delete them with the sidebar's 🗑).
+
+### Notes
+- Row amounts due are unrounded (to the cent); only the Suggested Repayment Amount is rounded down to the nearest K5. Frontend-only change (`index.html`).
+
+
+## [1.10.0] — Chain Calculator & saved chains
+
+### Added
+- **Loan Calculator now has two tabs**: the existing calculator (default) and a new **Chain Calculator**.
+- **Chain Calculator**: set one **Proposed Repayment Date**, then add rows (date, amount, charges). Each row accrues the system's daily rate (1.428571429%/day) on its own amount from its own date to the repayment date; charges are added on top. The rate used per row is shown, and the total is rounded down to the nearest K5.
+  - Example: repay 15-10-2026; K1,575 + K0 on 25-09 and K1,000 + K3 on 02-10 → K3,213.71 → **K3,210**.
+- **Saved chains**: a sidebar lists saved chains grouped by debtor; click to load, 💾 Save / Save as New, 🗑 delete.
+- **Send to Ledger**: loads a chain (current or saved) straight into the Loan Ledger — each row becomes a ledger row with the repayment date as Due Date and the debtor as the ledger name. The chain's suggested total is pre-filled in "Spread a Total".
+
+### Notes
+- New table `chains (chainID, debtor, chain, created_at, updated_at)`; `chain` stores JSON `{ repaymentDate, rows: [{ date, principal, charges }] }`. Created automatically on startup.
+- New IPC handlers `get-chains`, `save-chain`, `delete-chain` and preload methods `getChains`, `saveChain`, `deleteChain`.
+
+
+## [1.9.1] — Loan Ledger: optional "Spread a Total"
+
+### Added
+- **Optional "Spread a Total" tool** in the Loan Ledger: enter a total Amount Due and click **Spread Across Rows** to fill every eligible row's Amount Due so all rows share the same weekly rate.
+  - `r = (Total − Σbase) ÷ Σ(base × days/7)`, then `due = base × (1 + r × days/7)` rounded to cents, where `base = principal + charges`.
+  - Leftover cents are distributed one at a time to the rows with the largest rounding remainders, so the dues add up to the total exactly.
+  - Only rows with a principal and valid Date/Due Date are used; others are left untouched. Amount Due fields remain editable afterwards.
+
+### Notes
+- Frontend-only change (`index.html`).
+
+
+## [1.9.0] — dd-mm-yyyy dates & chain-wide repayment history
+
+### Changed
+- **All dates are displayed as dd-mm-yyyy** across the app (tables, loan/debtor detail, loan chain, portfolio graph, sidebar, extension notes). Stored values stay yyyy-mm-dd. Native date pickers now use a day-first locale (en-GB).
+- **Repayment History in the Loan Detail modal shows every payment in the loan chain**, newest first, with a "Paid To Loan" column showing which loan each payment went to.
+- **The "Xd late" badge is judged against the due date of the loan the payment was made to**, not the loan being viewed.
+
+### Notes
+- `index.html` and a one-line locale switch in `main.js`. No schema or IPC changes.
+
+
+## [1.8.5] — Loan Ledger: smarter new rows
+
+### Changed
+- **New rows copy the Due Date of the row above.**
+- **New rows start with today's date in the Date field**, so the year is already filled in.
+- A row now appears in the preview/exports once a Principal, Charges or Amount Due is entered (pre-filled dates alone don't create an empty row).
+
+### Notes
+- Frontend-only change (`index.html`).
+
+---
+
+## [1.8.4] — Loan Ledger: reorder rows
+
+### Added
+- **Ledger rows can be reordered**: drag a row by its ⠿ handle (a line shows where it will land). The `#` column, preview, image and PDF all follow the new order.
+
+### Notes
+- Frontend-only change (`index.html`).
+
+---
+
+## [1.8.3] — Loan Ledger: weekly rate
+
+### Added
+- **Greyed-out "(x% p/w)" next to each Amount Due** (entry grid, preview, image and PDF), with a "p/w = per week" legend below the table.
+  - Formula: `(Amount Due − (Principal + Charges)) ÷ (Principal + Charges) ÷ Duration days × 7`, shown as a percentage. Needs both dates, a principal and an amount due.
+
+### Notes
+- Frontend-only change (`index.html`).
+
+---
+
+## [1.8.2] — Loan Ledger: auto duration & date pickers
+
+### Changed
+- **Duration is now calculated automatically** from the row's Date and Due Date (whole days). It stays blank until both dates are set, and shows "Check dates" if the due date is before the date.
+- **Date and Due Date use the same date-picker input** as the New Loan modal. Exported ledgers (image and PDF) still print dates as dd-mm-yyyy.
+
+### Notes
+- Frontend-only change (`index.html`).
+
+---
+
+## [1.8.1] — Loan Ledger: manual entry, dd-mm-yyyy, centred table
+
+### Changed
+- **Loan Ledger is now fully manual.** Nothing is pulled from existing loans any more — type each row's Date, Principal, Duration, Charges, Amount Due and Due Date yourself (add/remove rows freely, optional name/title field).
+- **Dates use dd-mm-yyyy** in the ledger (entry, preview, PNG, PDF and file names). Entries like `5/3/26` are tidied to `05-03-2026`.
+- **The table is vertically centred on the page** (image and PDF); the logo stays top-left and the title top-right.
+
+### Notes
+- Frontend-only change (`index.html`); `main.js`/`preload.js` from 1.8.0 are unchanged.
+
+---
+
+## [1.8.0] — Loan Ledger
+
+### Added
+- **New "Loan Ledger" tab** (sidebar → Records → 📒 Loan Ledger): pick a debtor, tick the loans to include, and export a black-and-white loan breakdown with columns `# | Date | Principal | Duration | Charges | Amount Due | Due Date` plus a totals row.
+  - **Export Image**: 3042 × 4032 px PNG (auto-splits into several images if the loans don't fit on one page).
+  - **Export PDF**: A4 PDF with a repeating header row across pages.
+  - The Lukavo logo is placed in the top-left corner of every page.
+  - Duration = days between loan date and due date ("—" when no due date). Amount Due = the loan's repayment amount.
+
+### Notes
+- New file `logo.js` (embedded logo). New IPC handler `export-ledger` and preload method `window.api.exportLedger`. No schema changes.
+
+---
+
+## [1.7.1] — Active Capital Out respects extension chains
+
+### Fixed
+- **Dashboard "Active Capital Out" no longer inflates on extended loans.** It previously used each active loan's `loan_amount` (which includes the balance rolled over from earlier links), so a K1,000 loan extended twice (the second time adding K200) showed K2,200. It is now calculated per chain: root principal + each extension's `new_principal` (K1,000 + K200 = K1,200), minus repayments made across the whole chain, floored at 0. Chains whose latest link is closed are excluded.
+
+### Notes
+- Frontend-only change (`index.html`); no schema, `main.js` or stored-data changes.
+
+---
+
 ## [1.7.0] — Portfolio Growth Graph
 
 ### Changed

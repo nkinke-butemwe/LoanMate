@@ -1,8 +1,11 @@
-const { app, BrowserWindow, ipcMain } = require('electron');
+const { app, BrowserWindow, ipcMain, dialog } = require('electron');
 const path = require('path');
 const fs = require('fs');
 const sqlite3 = require('sqlite3').verbose();
 const packageJson = require('./package.json');
+
+// Use a day-first locale so native date pickers show dd/mm/yyyy.
+app.commandLine.appendSwitch('lang', 'en-GB');
 
 let mainWindow;
 let db;
@@ -61,6 +64,16 @@ function connectDatabase() {
       notes TEXT,
       created_at TEXT DEFAULT (datetime('now','localtime')),
       FOREIGN KEY (loan_id) REFERENCES loans(id)
+    )`);
+
+    // Saved chains for the Chain Calculator (v1.10.0). `chain` holds JSON:
+    // { repaymentDate: 'yyyy-mm-dd', rows: [{ date, principal, charges }] }
+    db.run(`CREATE TABLE IF NOT EXISTS chains (
+      chainID INTEGER PRIMARY KEY AUTOINCREMENT,
+      debtor TEXT NOT NULL,
+      chain TEXT NOT NULL,
+      created_at TEXT DEFAULT (datetime('now','localtime')),
+      updated_at TEXT DEFAULT (datetime('now','localtime'))
     )`);
 
     // Migration: add parent_loan_id to support loan extensions (v1.1.0).
@@ -181,6 +194,25 @@ ipcMain.handle('add-loan', async (_, data) => {
 
 ipcMain.handle('close-loan', async (_, id) => {
   return await dbRun('UPDATE loans SET status=? WHERE id=?', ['closed', id]);
+});
+
+// Sets only a loan's due date (used by the early-payment flow, which moves the
+// due date back to the day the debtor actually paid). The loan period is
+// derived from loan_date -> due_date, so this also updates the period.
+ipcMain.handle('set-loan-due-date', async (_, { id, due_date }) => {
+  const loan = await dbGet('SELECT id FROM loans WHERE id=?', [id]);
+  if (!loan) throw new Error('Loan not found');
+  return await dbRun('UPDATE loans SET due_date=? WHERE id=?', [due_date || '', id]);
+});
+
+// Early settlement (v1.12.0): closes the loan at what was actually paid. The
+// repayable amount becomes the total repaid (so nothing is left as a balance or
+// shortfall), and the due date moves to the given date (the payment date).
+ipcMain.handle('close-loan-early', async (_, { id, due_date }) => {
+  const loan = await dbGet('SELECT id FROM loans WHERE id=?', [id]);
+  if (!loan) throw new Error('Loan not found');
+  const paid = await dbGet('SELECT COALESCE(SUM(amount),0) as total FROM repayments WHERE loan_id=?', [id]);
+  return await dbRun(`UPDATE loans SET status='closed', repayment_amount=?, due_date=? WHERE id=?`, [paid.total, due_date || '', id]);
 });
 
 ipcMain.handle('delete-loan', async (_, id) => {
@@ -472,6 +504,52 @@ ipcMain.handle('get-analytics', async () => {
     perDebtor,
     portfolio: { events: portfolioEvents, defaultFrom, defaultTo }
   };
+});
+
+// SAVED CHAINS
+ipcMain.handle('get-chains', async () => {
+  return await dbAll(`SELECT chainID, debtor, chain, created_at, updated_at FROM chains ORDER BY debtor COLLATE NOCASE, updated_at DESC, chainID DESC`);
+});
+
+ipcMain.handle('save-chain', async (_, data) => {
+  const { chainID, debtor, chain } = data;
+  if (!debtor || !String(debtor).trim()) throw new Error('Debtor is required');
+  const json = typeof chain === 'string' ? chain : JSON.stringify(chain);
+  if (chainID) {
+    const r = await dbRun(`UPDATE chains SET debtor=?, chain=?, updated_at=datetime('now','localtime') WHERE chainID=?`, [String(debtor).trim(), json, chainID]);
+    if (r.changes) return { chainID };
+  }
+  const r = await dbRun('INSERT INTO chains (debtor, chain) VALUES (?,?)', [String(debtor).trim(), json]);
+  return { chainID: r.lastID };
+});
+
+ipcMain.handle('delete-chain', async (_, id) => {
+  return await dbRun('DELETE FROM chains WHERE chainID=?', [id]);
+});
+
+// LOAN LEDGER EXPORT
+// Shows a Save dialog, then writes either a PNG (data URL from the renderer's
+// canvas) or an A4 PDF rendered from an HTML string in a hidden window.
+ipcMain.handle('export-ledger', async (_, { type, name, html, dataUrl }) => {
+  const isPdf = type === 'pdf';
+  const { canceled, filePath } = await dialog.showSaveDialog(mainWindow, {
+    defaultPath: path.join(app.getPath('documents'), name),
+    filters: [isPdf ? { name: 'PDF Document', extensions: ['pdf'] } : { name: 'PNG Image', extensions: ['png'] }]
+  });
+  if (canceled || !filePath) return { canceled: true };
+  if (isPdf) {
+    const win = new BrowserWindow({ show: false, webPreferences: { sandbox: true } });
+    try {
+      await win.loadURL('data:text/html;charset=utf-8,' + encodeURIComponent(html));
+      const buf = await win.webContents.printToPDF({ pageSize: 'A4', printBackground: true, preferCSSPageSize: true });
+      fs.writeFileSync(filePath, buf);
+    } finally {
+      win.destroy();
+    }
+  } else {
+    fs.writeFileSync(filePath, Buffer.from(dataUrl.replace(/^data:image\/png;base64,/, ''), 'base64'));
+  }
+  return { canceled: false, filePath };
 });
 
 // ── WINDOW ─────────────────────────────────────────────────────

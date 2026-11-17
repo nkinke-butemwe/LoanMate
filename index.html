@@ -243,6 +243,59 @@ textarea { resize: vertical; min-height: 65px; }
 .pg-tooltip { position: absolute; display: none; z-index: 20; pointer-events: none; background: var(--surface3); border: 1px solid var(--border); border-radius: var(--radius); padding: 9px 12px; font-size: 12px; line-height: 1.6; min-width: 230px; box-shadow: 0 6px 18px rgba(0,0,0,0.45); }
 .pg-tooltip .pg-tip-h { font-weight: 700; margin-bottom: 3px; }
 
+/* ── LEDGER ROW REORDER ── */
+#ledger-edit-body tr.dragging { opacity: 0.35; }
+#ledger-edit-body tr.drop-above td { box-shadow: inset 0 2px 0 var(--accent); }
+#ledger-edit-body tr.drop-below td { box-shadow: inset 0 -2px 0 var(--accent); }
+.ledger-handle { cursor: grab; user-select: none; white-space: nowrap; color: var(--text2); }
+.ledger-handle:active { cursor: grabbing; }
+
+/* ── CHAIN CALCULATOR ── */
+.chain-layout { display: grid; grid-template-columns: 270px 1fr; gap: 14px; align-items: start; }
+.chain-group { font-size: 10px; letter-spacing: 1.2px; text-transform: uppercase; color: var(--text2); margin: 12px 0 5px; }
+.chain-item { background: var(--surface2); border: 1px solid var(--border); border-radius: var(--radius); padding: 8px 10px; margin-bottom: 6px; cursor: pointer; transition: all 0.12s; }
+.chain-item:hover { border-color: var(--accent); }
+.chain-item.active { border-color: var(--accent); background: var(--surface3); }
+@media (max-width: 900px) { .chain-layout { grid-template-columns: 1fr; } }
+
+/* ── DEBTOR COMBOBOX (themed replacement for the native datalist) ── */
+.combo { position: relative; }
+.combo input { padding-right: 30px; }
+.combo-arrow { position: absolute; right: 11px; top: 50%; transform: translateY(-50%); color: var(--text2); cursor: pointer; font-size: 13px; user-select: none; }
+.combo-arrow:hover { color: var(--accent); }
+.combo-list { display: none; position: absolute; left: 0; right: 0; top: calc(100% + 4px); z-index: 50; max-height: 220px; overflow-y: auto; background: var(--surface2); border: 1px solid var(--border); border-radius: var(--radius); box-shadow: 0 6px 18px rgba(0,0,0,0.45); }
+.combo-item { padding: 8px 11px; font-size: 13px; color: var(--text); cursor: pointer; }
+.combo-item:hover { background: var(--surface3); color: var(--accent); }
+input:-webkit-autofill, input:-webkit-autofill:focus { -webkit-box-shadow: 0 0 0 100px var(--surface2) inset; -webkit-text-fill-color: var(--text); caret-color: var(--text); }
+
+/* ── PAYMENT SCHEDULE (dashboard) ── */
+.switch-btn { position: relative; background: none; border: none; color: inherit; cursor: pointer; padding: 2px; display: inline-flex; align-items: center; transition: color 0.12s; }
+.switch-btn:hover { color: var(--accent); }
+.switch-btn::after { content: attr(data-tip); position: absolute; left: 0; top: calc(100% + 6px); background: var(--surface3); border: 1px solid var(--border); color: var(--accent); font-size: 10px; font-weight: 600; letter-spacing: 0.3px; text-transform: none; padding: 3px 9px; border-radius: 6px; white-space: nowrap; opacity: 0; pointer-events: none; transition: opacity 0.12s; z-index: 30; }
+.switch-btn:hover::after { opacity: 1; }
+#dash-schedule-view { position: relative; }
+.sched-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; }
+.sched-month { font-size: 16px; font-weight: 700; color: var(--text); }
+.sched-nav { display: flex; gap: 6px; }
+.sched-nav button { width: 30px; height: 30px; border-radius: 8px; background: var(--surface2); border: 1px solid var(--border); color: var(--text); cursor: pointer; font-size: 16px; line-height: 1; }
+.sched-nav button:hover { border-color: var(--accent); color: var(--accent); }
+.sched-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 5px; }
+.sched-dow { text-align: center; font-size: 9px; font-weight: 700; letter-spacing: 1.2px; color: var(--text2); padding: 4px 0; }
+.sched-cell { min-height: 50px; border-radius: 8px; background: var(--surface2); border: 1px solid var(--border); text-align: center; padding: 5px 2px; }
+.sched-cell.empty { background: transparent; border: none; }
+.sched-cell .d { font-size: 13px; font-weight: 700; color: var(--text); }
+.sched-cell .amt { font-size: 10px; font-weight: 700; color: var(--accent); margin-top: 3px; }
+.sched-cell.has-pay { cursor: default; }
+.sched-cell.has-pay:hover { border-color: var(--accent); background: var(--surface3); }
+.sched-cell.has-overdue .amt { color: var(--danger); }
+.sched-cell.today { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent) inset; background: rgba(46,204,113,0.12); }
+.sched-cell.today .d { color: var(--accent); }
+.sched-tip { position: absolute; display: none; z-index: 40; pointer-events: none; background: var(--surface3); border: 1px solid var(--border); border-radius: var(--radius); padding: 9px 12px; font-size: 12px; line-height: 1.6; min-width: 210px; box-shadow: 0 6px 18px rgba(0,0,0,0.45); }
+.sched-tip .st-h { font-weight: 700; margin-bottom: 4px; }
+.sched-tip .st-row { display: flex; justify-content: space-between; gap: 14px; }
+.sched-tip .st-total { border-top: 1px solid var(--border); margin-top: 4px; padding-top: 4px; font-weight: 700; display: flex; justify-content: space-between; }
+.sched-foot { text-align: center; font-size: 11px; color: var(--text2); margin-top: 10px; }
+
 /* ── UTILITIES ── */
 .divider { border: none; border-top: 1px solid var(--border); margin: 14px 0; }
 .flex-row { display: flex; align-items: center; gap: 8px; }
@@ -287,6 +340,7 @@ textarea { resize: vertical; min-height: 65px; }
       <div class="nav-item" onclick="nav('debtors')"><span class="icon">👥</span> Debtors</div>
       <div class="nav-section">Records</div>
       <div class="nav-item" onclick="nav('history')"><span class="icon">🗂️</span> Loan History</div>
+      <div class="nav-item" onclick="nav('ledger')"><span class="icon">📒</span> Loan Ledger</div>
       <div class="nav-section">Insights</div>
       <div class="nav-item" onclick="nav('analytics')"><span class="icon">📈</span> Analytics</div>
       <div class="nav-section">Tools</div>
@@ -294,10 +348,10 @@ textarea { resize: vertical; min-height: 65px; }
     </nav>
     <div class="sidebar-footer">
       <div class="user-badge">
-        <div class="avatar">A</div>
+        <div class="avatar">L</div>
         <div>
-          <div style="font-size:12px;color:var(--text)">Admin</div>
-          <div style="font-size:10px;color:var(--text2)">Administrator</div>
+          <div style="font-size:12px;color:var(--text)">Lukavo Business</div>
+          <div style="font-size:10px;color:var(--text2)">Butemwe Nkinke</div>
         </div>
       </div>
     </div>
@@ -318,8 +372,12 @@ textarea { resize: vertical; min-height: 65px; }
       <div class="stat-grid" id="dash-stats"></div>
       <div class="grid-2">
         <div class="card">
-          <div class="card-title">Active Loans <span id="dash-loan-count" class="text-muted" style="font-size:11px"></span></div>
-          <div id="dash-loans-table"></div>
+          <div class="card-title">
+            <div class="flex-row" style="gap:8px"><span id="dash-card-heading">Active Loans</span><button type="button" class="switch-btn" id="dash-switch" data-tip="Payment Schedule" onclick="toggleDashSchedule()"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 3l4 4-4 4"/><path d="M3 7h18"/><path d="M7 21l-4-4 4-4"/><path d="M21 17H3"/></svg></button></div>
+            <span id="dash-loan-count" class="text-muted" style="font-size:11px"></span>
+          </div>
+          <div id="dash-loans-view"><div id="dash-loans-table"></div></div>
+          <div id="dash-schedule-view" style="display:none"></div>
         </div>
         <div class="card">
           <div class="card-title">Overdue Loans</div>
@@ -498,11 +556,62 @@ textarea { resize: vertical; min-height: 65px; }
       </div>
     </div>
 
+    <!-- LOAN LEDGER -->
+    <div id="page-ledger" class="page">
+      <div class="page-header">
+        <div class="page-title">Loan <span>Ledger</span></div>
+        <div class="flex-row">
+          <button class="btn btn-secondary" onclick="exportLedger('png')">🖼 Export Image (3042×4032)</button>
+          <button class="btn btn-primary" onclick="exportLedger('pdf')">📄 Export PDF (A4)</button>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-title">Ledger Entries <span style="text-transform:none;letter-spacing:0">type the values yourself &middot; duration is calculated from the two dates &middot; exported dates read dd-mm-yyyy</span></div>
+        <div class="form-group" style="max-width:360px">
+          <label>Name / Title <span class="text-muted" style="text-transform:none">(optional)</span></label>
+          <input type="text" id="ledger-name" placeholder="e.g. John Banda" oninput="ledgerSchedulePreview()">
+        </div>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>#</th><th>Date</th><th>Principal (ZMW)</th><th>Duration (auto)</th>
+                <th>Charges (ZMW)</th><th>Amount Due (ZMW)</th><th>Due Date</th><th></th>
+              </tr>
+            </thead>
+            <tbody id="ledger-edit-body"></tbody>
+          </table>
+        </div>
+        <div class="flex-row mt-12">
+          <button class="btn btn-secondary btn-sm" onclick="ledgerAddRow()">+ Add Row</button>
+          <button class="btn btn-ghost btn-sm" onclick="ledgerClear()">Clear All</button>
+        </div>
+        <hr class="divider">
+        <div class="card-title" style="margin-bottom:8px">Spread a Total <span style="text-transform:none;letter-spacing:0">optional &middot; fills every row's Amount Due so all rows get the same weekly %</span></div>
+        <div class="flex-row" style="gap:8px;flex-wrap:wrap;align-items:flex-end">
+          <div class="form-group" style="margin:0;max-width:220px">
+            <label>Total Amount Due (ZMW)</label>
+            <input type="number" id="ledger-spread-total" min="0" step="0.01" placeholder="0.00">
+          </div>
+          <button class="btn btn-secondary" onclick="ledgerSpreadTotal()">⚖ Spread Across Rows</button>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-title">Preview <span id="ledger-info" style="text-transform:none;letter-spacing:0"></span></div>
+        <div id="ledger-preview"></div>
+      </div>
+    </div>
+
     <!-- LOAN CALCULATOR -->
     <div id="page-calculator" class="page">
       <div class="page-header">
         <div class="page-title">Loan <span>Calculator</span></div>
       </div>
+      <div class="filter-tabs mb-16" id="calc-tabs">
+        <div class="filter-tab active" data-tab="single" onclick="setCalcTab('single')">Loan Calculator</div>
+        <div class="filter-tab" data-tab="chain" onclick="setCalcTab('chain')">Chain Calculator</div>
+      </div>
+      <div id="calc-tab-single">
       <div class="grid-2">
         <div class="card">
           <div class="card-title">Proposed Loan</div>
@@ -540,6 +649,71 @@ textarea { resize: vertical; min-height: 65px; }
             Interest is charged at <strong>1.428571429% per day</strong>. Mobile money charges are calculated using the standard tiered fee tables
             — a withdrawal charge on the principal, then a sending charge on the principal plus withdrawal charge (using cross-network rates when checked).
             The final suggested repayment amount is rounded down to the nearest K5.
+          </div>
+        </div>
+      </div>
+      </div><!-- /#calc-tab-single -->
+      <div id="calc-tab-chain" style="display:none">
+        <div class="chain-layout">
+          <div class="card" style="margin-bottom:0">
+            <div class="card-title">Saved Chains <button class="btn btn-secondary btn-sm" onclick="chainNew()">+ New</button></div>
+            <input type="text" id="chain-search" placeholder="Search debtor…" oninput="renderChainSidebar()">
+            <div id="chain-sidebar"></div>
+          </div>
+          <div>
+            <div class="card">
+              <div class="card-title">Chain <span id="chain-editing" style="text-transform:none;letter-spacing:0">new chain</span></div>
+              <div class="form-row">
+                <div class="form-group">
+                  <label>Debtor *</label>
+                  <div class="combo">
+                    <input type="text" id="chain-debtor" autocomplete="off" spellcheck="false" placeholder="e.g. John Banda" onfocus="comboOpen()" oninput="comboOpen()" onblur="comboClose()">
+                    <span class="combo-arrow" onmousedown="event.preventDefault();comboToggle()">▾</span>
+                    <div class="combo-list" id="chain-debtor-menu"></div>
+                  </div>
+                </div>
+                <div class="form-group">
+                  <label>Proposed Repayment Date *</label>
+                  <input type="date" id="chain-repay-date" oninput="chainRecalc()">
+                  <label style="margin:6px 0 0;text-transform:none;font-size:12px;color:var(--text);display:flex;align-items:center;gap:6px;cursor:pointer" title="No fixed repayment date: interest is calculated up to today and moves forward every day">
+                    <input type="checkbox" id="chain-running" style="width:auto" onchange="chainToggleRunning(this.checked)"> Running chain (open date, up to today)
+                  </label>
+                </div>
+                <div class="form-group">
+                  <label>Daily Rate (% / day)</label>
+                  <input type="number" id="chain-rate" min="0" step="0.01" placeholder="1.43 (default)" oninput="chainRateEdit(this.value)">
+                  <div class="fs-12 text-muted" id="chain-rate-hint" style="margin-top:3px">Using default 1.43% a day</div>
+                </div>
+              </div>
+              <div class="table-wrap">
+                <table>
+                  <thead><tr><th>#</th><th>Date</th><th>Amount (ZMW)</th><th>Charges (ZMW)</th><th>Days</th><th>Rate</th><th class="text-right">Amount Due</th><th></th></tr></thead>
+                  <tbody id="chain-rows"></tbody>
+                </table>
+              </div>
+              <div class="flex-row mt-12" style="flex-wrap:wrap">
+                <button class="btn btn-secondary btn-sm" onclick="chainAddRow()">+ Add Row</button>
+                <button class="btn btn-primary btn-sm" onclick="chainSave(false)">💾 Save</button>
+                <button class="btn btn-secondary btn-sm" onclick="chainSave(true)">Save as New</button>
+                <button class="btn btn-secondary btn-sm" onclick="chainToLedger()">📒 Send to Ledger</button>
+                <button class="btn btn-secondary btn-sm" title="Take this chain off the workspace (saved chains stay in the sidebar)" onclick="chainClose()">✖ Close Chain</button>
+              </div>
+            </div>
+            <div class="card">
+              <div class="card-title">Chain Breakdown <span id="chain-asof" style="text-transform:none;letter-spacing:0"></span></div>
+              <div class="calc-preview">
+                <div class="cr"><span>Rows counted</span><span id="chain-t-rows">—</span></div>
+                <div class="cr"><span>Total Principal</span><span id="chain-t-principal">—</span></div>
+                <div class="cr"><span>Total Charges</span><span id="chain-t-charges">—</span></div>
+                <div class="cr"><span>Total Interest</span><span id="chain-t-interest">—</span></div>
+                <div class="cr"><span>Total Repayable</span><span id="chain-t-total">—</span></div>
+                <div class="cr total"><span>Suggested Repayment Amount</span><span id="chain-t-suggested">—</span></div>
+              </div>
+              <div class="mt-16" style="font-size:11px;color:var(--text2);line-height:1.6">
+                Each row accrues <strong>1.428571429% per day</strong> on its amount from its own date until the proposed repayment date; its transfer charges are added on top (no interest on charges).
+                The total is rounded down to the nearest K5.
+              </div>
+            </div>
           </div>
         </div>
       </div>
@@ -783,6 +957,7 @@ textarea { resize: vertical; min-height: 65px; }
   </div>
 </div>
 
+<script src="logo.js"></script>
 <script>
 // ════════════════════════════════════════════════
 // STATE
@@ -797,12 +972,14 @@ let historyFilter = 'all';
 
 const fmt = (n) => 'K ' + Number(n || 0).toLocaleString('en-ZM', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 const today = () => new Date().toISOString().slice(0, 10);
+// Display helper: yyyy-mm-dd (storage format) -> dd-mm-yyyy (what the user sees).
+const fd = (s) => (s && /^\d{4}-\d{2}-\d{2}/.test(s)) ? s.slice(8, 10) + '-' + s.slice(5, 7) + '-' + s.slice(0, 4) : (s || '');
 
 // Helper: due dates are optional. A blank/empty due_date means "no due date
 // set" — such loans are never treated as overdue and display a muted
 // placeholder instead of a date.
 const hasDueDate = (l) => !!(l && l.due_date);
-const dueDateLabel = (l) => hasDueDate(l) ? l.due_date : 'No due date';
+const dueDateLabel = (l) => hasDueDate(l) ? fd(l.due_date) : 'No due date';
 // Sort helper: loans without a due date sort to the end regardless of
 // ascending/descending direction by treating them as "infinitely far".
 const dueDateSortValue = (l) => hasDueDate(l) ? new Date(l.due_date).getTime() : Infinity;
@@ -845,6 +1022,7 @@ async function loadPage(page) {
   if (page === 'loans') await loadLoansPage();
   if (page === 'debtors') await loadDebtorsPage();
   if (page === 'history') await loadHistoryPage();
+  if (page === 'ledger') await loadLedgerPage();
   if (page === 'analytics') await loadAnalytics();
   if (page === 'calculator') initCalculator();
 }
@@ -869,16 +1047,157 @@ async function refreshAllLoans() {
 // ════════════════════════════════════════════════
 // DASHBOARD
 // ════════════════════════════════════════════════
+// Active capital out across extension chains (see loadDashboard).
+function computeActiveCapitalOut(allLoans) {
+  const byId = new Map(allLoans.map(l => [l.id, l]));
+  const childOf = new Map();
+  for (const l of allLoans) {
+    if (l.parent_loan_id && byId.has(l.parent_loan_id)) childOf.set(l.parent_loan_id, l);
+  }
+  const roots = allLoans.filter(l => !l.parent_loan_id || !byId.has(l.parent_loan_id));
+  let total = 0;
+  for (const root of roots) {
+    const chain = [root];
+    const seen = new Set([root.id]);
+    let next = childOf.get(root.id);
+    while (next && !seen.has(next.id)) { chain.push(next); seen.add(next.id); next = childOf.get(next.id); }
+    if (chain[chain.length - 1].status !== 'active') continue;
+    let principal = 0, repaid = 0;
+    chain.forEach(l => {
+      principal += l.parent_loan_id ? (l.new_principal || 0) : (l.loan_amount || 0);
+      repaid += l.total_repaid || 0;
+    });
+    total += Math.max(0, principal - repaid);
+  }
+  return total;
+}
+
+// ── Relative due dates (Active Loans card) ──
+// Due within the coming week shows Today / Tomorrow / the weekday name; anything
+// else (further out, or already past) keeps the dd-mm-yyyy date.
+const pad2 = (n) => String(n).padStart(2, '0');
+const localISO = (d) => d.getFullYear() + '-' + pad2(d.getMonth() + 1) + '-' + pad2(d.getDate());
+const parseLocal = (iso) => { const [y, m, d] = iso.split('-').map(Number); return new Date(y, m - 1, d); };
+function relDueLabel(l) {
+  if (!hasDueDate(l)) return 'No due date';
+  const t = new Date(); t.setHours(0, 0, 0, 0);
+  const diff = Math.round((parseLocal(l.due_date) - t) / 86400000);
+  if (diff === 0) return 'Today';
+  if (diff === 1) return 'Tomorrow';
+  if (diff >= 2 && diff <= 6) return parseLocal(l.due_date).toLocaleDateString('en-GB', { weekday: 'long' });
+  return fd(l.due_date);
+}
+
+// ── Payment Schedule (dashboard calendar) ──
+let dashView = 'loans';
+let schedMonth = null; // { y, m } (m is 0-based)
+let schedDays = {};
+const SCHED_SWITCH_SVG = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 3l4 4-4 4"/><path d="M3 7h18"/><path d="M7 21l-4-4 4-4"/><path d="M21 17H3"/></svg>';
+
+function shortK(n) {
+  const r = Math.round(n);
+  if (r < 1000) return String(r);
+  const k = Math.round(r / 100) / 10;
+  return (k % 1 === 0 ? k.toFixed(0) : k.toFixed(1)) + 'K';
+}
+
+function toggleDashSchedule() {
+  dashView = dashView === 'loans' ? 'schedule' : 'loans';
+  const sched = dashView === 'schedule';
+  document.getElementById('dash-card-heading').textContent = sched ? 'Payment Schedule' : 'Active Loans';
+  document.getElementById('dash-switch').setAttribute('data-tip', sched ? 'Active Loans' : 'Payment Schedule');
+  document.getElementById('dash-loans-view').style.display = sched ? 'none' : '';
+  document.getElementById('dash-schedule-view').style.display = sched ? '' : 'none';
+  document.getElementById('dash-loan-count').style.display = sched ? 'none' : '';
+  if (sched) {
+    if (!schedMonth) { const n = new Date(); schedMonth = { y: n.getFullYear(), m: n.getMonth() }; }
+    renderSchedule();
+  }
+}
+
+function schedShift(delta) {
+  const d = new Date(schedMonth.y, schedMonth.m + delta, 1);
+  schedMonth = { y: d.getFullYear(), m: d.getMonth() };
+  renderSchedule();
+}
+
+function renderSchedule() {
+  const box = document.getElementById('dash-schedule-view');
+  if (!schedMonth) { const n = new Date(); schedMonth = { y: n.getFullYear(), m: n.getMonth() }; }
+  const { y, m } = schedMonth;
+
+  // Group the money still expected by due date (balance of every active loan).
+  schedDays = {};
+  let noDue = 0;
+  state.loans.forEach(l => {
+    const bal = Math.max(0, l.balance || 0);
+    if (bal <= 0.005) return;
+    if (!hasDueDate(l)) { noDue++; return; }
+    (schedDays[l.due_date] = schedDays[l.due_date] || []).push({ debtor: l.debtor_name, amt: bal, overdue: !!l.is_overdue });
+  });
+
+  const todayIso = localISO(new Date());
+  const first = new Date(y, m, 1);
+  const daysInMonth = new Date(y, m + 1, 0).getDate();
+  let cells = '', monthTotal = 0;
+  for (let i = 0; i < first.getDay(); i++) cells += '<div class="sched-cell empty"></div>';
+  for (let d = 1; d <= daysInMonth; d++) {
+    const iso = y + '-' + pad2(m + 1) + '-' + pad2(d);
+    const items = schedDays[iso];
+    const total = items ? items.reduce((s, x) => s + x.amt, 0) : 0;
+    monthTotal += total;
+    const cls = ['sched-cell'];
+    if (iso === todayIso) cls.push('today');
+    if (items) { cls.push('has-pay'); if (items.some(x => x.overdue)) cls.push('has-overdue'); }
+    cells += `<div class="${cls.join(' ')}"${items ? ` data-date="${iso}"` : ''}><div class="d">${d}</div>${items ? `<div class="amt">${shortK(total)}</div>` : ''}</div>`;
+  }
+  const monthName = first.toLocaleDateString('en-GB', { month: 'long', year: 'numeric' });
+  const dow = ['SUN', 'MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT'].map(x => `<div class="sched-dow">${x}</div>`).join('');
+
+  box.innerHTML = `<div class="sched-head">
+      <div class="sched-month">${monthName}</div>
+      <div class="sched-nav"><button type="button" onclick="schedShift(-1)" title="Previous month">‹</button><button type="button" onclick="schedShift(1)" title="Next month">›</button></div>
+    </div>
+    <div class="sched-grid">${dow}${cells}</div>
+    <div class="sched-foot">Expected this month: <strong class="text-yellow">${fmt(monthTotal)}</strong> &middot; values rounded, e.g. 5.2K = K 5,200${noDue ? ` &middot; ${noDue} loan${noDue === 1 ? '' : 's'} with no due date not shown` : ''}</div>
+    <div class="sched-tip" id="sched-tip"></div>`;
+
+  const tip = document.getElementById('sched-tip');
+  const grid = box.querySelector('.sched-grid');
+  grid.onmousemove = (ev) => {
+    const c = ev.target.closest ? ev.target.closest('[data-date]') : null;
+    if (!c) { tip.style.display = 'none'; return; }
+    const iso = c.dataset.date, items = schedDays[iso] || [];
+    const total = items.reduce((s, x) => s + x.amt, 0);
+    const head = parseLocal(iso).toLocaleDateString('en-GB', { weekday: 'long' }) + ', ' + fd(iso);
+    const status = (x) => x.overdue ? ' <span class="badge badge-red">Overdue</span>' : (iso === todayIso ? ' <span class="badge badge-yellow">Due today</span>' : '');
+    tip.innerHTML = `<div class="st-h">${head}</div>` +
+      items.map(x => `<div class="st-row"><span>${esc(x.debtor)}${status(x)}</span><span class="fw-700">${fmt(x.amt)}</span></div>`).join('') +
+      (items.length > 1 ? `<div class="st-total"><span>Total</span><span class="text-yellow">${fmt(total)}</span></div>` : '');
+    tip.style.display = 'block';
+    const r = box.getBoundingClientRect();
+    let left = ev.clientX - r.left + 14;
+    if (left + tip.offsetWidth > r.width) left = ev.clientX - r.left - tip.offsetWidth - 14;
+    tip.style.left = Math.max(0, left) + 'px';
+    tip.style.top = Math.max(0, ev.clientY - r.top - tip.offsetHeight - 10) + 'px';
+  };
+  grid.onmouseleave = () => { tip.style.display = 'none'; };
+}
+
 async function loadDashboard() {
   await refreshState();
   const { debtors, loans } = state;
   const overdue = loans.filter(l => l.is_overdue);
   const totalOutstanding = loans.reduce((s, l) => s + Math.max(0, l.balance || 0), 0);
-  // Active capital out = principal not yet recovered. Repayments reduce it
-  // dollar-for-dollar until the principal is fully recovered (floored at 0 per
-  // loan); anything paid beyond that is interest/charges and never pushes
-  // capital below zero.
-  const totalLoaned = loans.reduce((s, l) => s + Math.max(0, (l.loan_amount || 0) - (l.total_repaid || 0)), 0);
+  // Active capital out = principal not yet recovered, measured per extension
+  // chain (root -> ext -> ext ...). An extension's loan_amount includes the
+  // balance rolled over from the previous link, so it is NOT new cash. The
+  // principal actually deployed for a chain is the root's loan_amount plus each
+  // extension's new_principal. Repayments across every link in the chain reduce
+  // it (floored at 0); anything beyond that is interest/charges. Only chains
+  // whose latest link is still active are counted.
+  await refreshAllLoans();
+  const totalLoaned = computeActiveCapitalOut(state.allLoans);
 
   document.getElementById('dash-stats').innerHTML = `
     <div class="stat-card"><div class="label">Active Loans</div><div class="value yellow">${loans.length}</div><div class="sub">${overdue.length} overdue</div></div>
@@ -900,7 +1219,7 @@ async function loadDashboard() {
         return `<tr>
           <td class="fw-700">${esc(l.debtor_name)}</td>
           <td class="text-right">${balanceDisplay}</td>
-          <td><span class="${l.is_overdue ? 'text-red' : 'text-muted'} fs-12">${dueDateLabel(l)}</span></td>
+          <td><span class="${l.is_overdue ? 'text-red' : 'text-muted'} fs-12">${relDueLabel(l)}</span></td>
           <td><button class="btn-icon" onclick="openLoanDetail(${l.id})">👁</button></td>
         </tr>`;
       }).join('')}
@@ -919,6 +1238,8 @@ async function loadDashboard() {
         </tr>`;
       }).join('')}</tbody>
     </table></div>` : '<div class="empty-state"><div class="icon">🎉</div><p>No overdue loans</p></div>';
+
+  if (dashView === 'schedule') renderSchedule();
 }
 
 // ════════════════════════════════════════════════
@@ -981,10 +1302,10 @@ function renderLoanRow(l, isActive) {
 
   const progressLabel = overpaid ? `${Math.round(rawPct)}%` : `${displayPct}%`;
 
-  const dueDateCell = hasDueDate(l) ? l.due_date : '<span class="text-muted">No due date</span>';
+  const dueDateCell = hasDueDate(l) ? fd(l.due_date) : '<span class="text-muted">No due date</span>';
   return `<tr>
     <td class="fw-700">${esc(l.debtor_name)}</td>
-    <td class="fs-12 text-muted">${l.loan_date}</td>
+    <td class="fs-12 text-muted">${fd(l.loan_date)}</td>
     <td class="fs-12 ${l.is_overdue && !overpaid ? 'text-red' : 'text-muted'}">${dueDateCell}${overdueBadge}</td>
     <td class="text-right">${fmt(l.loan_amount)}</td>
     <td class="text-right">${fmt(l.repayment_amount)}</td>
@@ -1215,14 +1536,14 @@ function onPortfolioDatesChanged() {
 
 function pgTipHtml(e, running) {
   if (e.type === 'bad_debt') {
-    return `<div class="pg-tip-h">💀 ${esc(e.debtor)} — ${e.date}</div>
+    return `<div class="pg-tip-h">💀 ${esc(e.debtor)} — ${fd(e.date)}</div>
       <div>Written off as bad debt</div>
       <div class="text-muted">${fmt(e.capital)} capital − ${fmt(e.repaid_to_date)} repaid</div>
       <div class="text-red fw-700">−${fmt(Math.abs(e.delta))} unrecovered</div>
       <div class="text-muted">Portfolio: ${fmt(running)}</div>`;
   }
   const ext = e.chain_links > 1 ? ` <span class="text-muted">(after ${e.chain_links - 1} extension${e.chain_links > 2 ? 's' : ''})</span>` : '';
-  return `<div class="pg-tip-h">${esc(e.debtor)} — ${e.date}</div>
+  return `<div class="pg-tip-h">${esc(e.debtor)} — ${fd(e.date)}</div>
     <div>Payment: ${fmt(e.paid)}${ext}</div>
     <div class="text-muted">${fmt(e.repaid_to_date)} repaid − ${fmt(e.principal)} principal − ${fmt(e.charges)} charges</div>
     <div class="text-green fw-700">+${fmt(e.delta)} growth</div>
@@ -1275,7 +1596,7 @@ function renderPortfolioChart() {
   }
   for (let i = 0; i <= 4; i++) {
     const xv = x0 + (x1 - x0) * i / 4;
-    grid += `<text x="${sx(xv)}" y="${H - 10}" text-anchor="${i === 0 ? 'start' : i === 4 ? 'end' : 'middle'}" fill="#8ab3b3" font-size="9">${pgDate(xv)}</text>`;
+    grid += `<text x="${sx(xv)}" y="${H - 10}" text-anchor="${i === 0 ? 'start' : i === 4 ? 'end' : 'middle'}" fill="#8ab3b3" font-size="9">${fd(pgDate(xv))}</text>`;
   }
   const zero = `<line x1="${PL}" x2="${W - PR}" y1="${sy(0)}" y2="${sy(0)}" stroke="#8ab3b3" stroke-width="1" stroke-dasharray="4 3"/>`;
 
@@ -1308,6 +1629,384 @@ function renderPortfolioChart() {
     tip.style.top = Math.max(0, ev.clientY - r.top - tip.offsetHeight - 10) + 'px';
   };
   wrap.onmouseleave = () => { tip.style.display = 'none'; };
+}
+
+// ════════════════════════════════════════════════
+// LOAN LEDGER
+// ════════════════════════════════════════════════
+// Manual-entry loan ledger (# | Date | Principal | Duration | Charges |
+// Amount Due | Due Date). Nothing is pulled from the loan database — every
+// value is typed in. Exports black & white 3042x4032 PNG page(s) via canvas, or
+// an A4 PDF via the main process. Dates are shown as dd-mm-yyyy. The table block
+// is centred vertically on each page; logo top-left from logo.js.
+// New rows start on today's date (so the year is already filled in) and copy the due date of the row above.
+const ledgerBlank = (prev) => ({ date: today(), principal: '', charges: '', due: '', dueDate: prev ? prev.dueDate : '' });
+let ledgerRows = [ledgerBlank()];
+let ledgerLogoImg = null;
+let ledgerRenderToken = 0;
+let ledgerTimer = null;
+
+const toDMY = (iso) => iso ? iso.slice(8, 10) + '-' + iso.slice(5, 7) + '-' + iso.slice(0, 4) : '';
+// Duration is calculated from the two dates (ISO yyyy-mm-dd from the date pickers).
+function ledgerDays(from, to) {
+  if (!from || !to) return null;
+  const d = Math.round((new Date(to) - new Date(from)) / 86400000);
+  return isNaN(d) || d < 0 ? null : d;
+}
+const ledgerDurText = (d) => d === null ? '' : `${d} day${d === 1 ? '' : 's'}`;
+// Weekly rate: profit over the period as a % of (principal + charges), spread per day, x7.
+// e.g. 500 + 3 charges, due 550 over 36 days: (550-503)/503 = 9.34% -> /36 = 0.2596%/day -> x7 = 1.82% p/w
+function ledgerRate(r) {
+  const days = ledgerDays(r.date, r.dueDate);
+  const p = ledgerNum(r.principal), d = ledgerNum(r.due), c = ledgerNum(r.charges) || 0;
+  if (!days || p === null || d === null || p + c <= 0) return null;
+  return ((d - (p + c)) / (p + c)) / days * 7 * 100;
+}
+const ledgerRateText = (v) => v === null ? '' : `(${v.toFixed(2)}% p/w)`;
+const ledgerNum = (v) => { const n = parseFloat(v); return isNaN(n) ? null : n; };
+const ledgerMoney = (n) => n === null || n === undefined ? '' : fmt(n);
+
+function loadLedgerPage() {
+  renderLedgerEditor();
+  renderLedgerPreview();
+}
+
+function renderLedgerEditor() {
+  const inp = 'style="padding:6px 8px"';
+  document.getElementById('ledger-edit-body').innerHTML = ledgerRows.map((r, i) => `<tr draggable="false" ondragstart="ledgerDragStart(event,${i})" ondragover="ledgerDragOver(event,this)" ondragleave="ledgerDragLeave(this)" ondrop="ledgerDrop(event,${i},this)" ondragend="ledgerDragEnd()">
+    <td class="ledger-handle fs-12" title="Drag to reorder" onmousedown="ledgerArmDrag(this,true)" onmouseup="ledgerArmDrag(this,false)">⠿ ${i + 1}</td>
+    <td><input type="date" ${inp} value="${esc(r.date)}" oninput="ledgerEdit(${i},'date',this.value)"></td>
+    <td><input type="number" ${inp} min="0" step="0.01" placeholder="0.00" value="${esc(r.principal)}" oninput="ledgerEdit(${i},'principal',this.value)"></td>
+    <td id="ledger-dur-${i}" class="fs-12 text-muted" style="white-space:nowrap">—</td>
+    <td><input type="number" ${inp} min="0" step="0.01" placeholder="0.00" value="${esc(r.charges)}" oninput="ledgerEdit(${i},'charges',this.value)"></td>
+    <td><div class="flex-row" style="gap:8px"><input type="number" ${inp} min="0" step="0.01" placeholder="0.00" value="${esc(r.due)}" oninput="ledgerEdit(${i},'due',this.value)"><span id="ledger-rate-${i}" class="fs-12 text-muted" style="white-space:nowrap"></span></div></td>
+    <td><input type="date" ${inp} value="${esc(r.dueDate)}" oninput="ledgerEdit(${i},'dueDate',this.value)"></td>
+    <td><button class="btn-icon" title="Remove row" onclick="ledgerRemoveRow(${i})">🗑</button></td>
+  </tr>`).join('');
+  ledgerRows.forEach((_, i) => { ledgerRefreshDur(i); ledgerRefreshRate(i); });
+}
+
+function ledgerRefreshRate(i) {
+  const el = document.getElementById('ledger-rate-' + i);
+  if (el) el.textContent = ledgerRateText(ledgerRate(ledgerRows[i]));
+}
+
+function ledgerRefreshDur(i) {
+  const el = document.getElementById('ledger-dur-' + i);
+  if (!el) return;
+  const r = ledgerRows[i];
+  const d = ledgerDays(r.date, r.dueDate);
+  if (r.date && r.dueDate && d === null) { el.textContent = 'Check dates'; el.className = 'fs-12 text-red'; }
+  else { el.textContent = ledgerDurText(d) || '—'; el.className = 'fs-12 text-muted'; }
+}
+
+function ledgerEdit(i, key, val) {
+  ledgerRows[i][key] = val;
+  if (key === 'date' || key === 'dueDate') ledgerRefreshDur(i);
+  ledgerRefreshRate(i);
+  ledgerSchedulePreview();
+}
+function ledgerAddRow() { ledgerRows.push(ledgerBlank(ledgerRows[ledgerRows.length - 1])); renderLedgerEditor(); ledgerSchedulePreview(); }
+function ledgerRemoveRow(i) {
+  ledgerRows.splice(i, 1);
+  if (!ledgerRows.length) ledgerRows.push(ledgerBlank());
+  renderLedgerEditor(); ledgerSchedulePreview();
+}
+// ── Row reordering (drag the ⠿ handle) ──
+let ledgerDragFrom = null;
+function ledgerArmDrag(td, on) { const tr = td.closest('tr'); if (tr) tr.draggable = on; }
+function ledgerDragStart(e, i) {
+  ledgerDragFrom = i;
+  e.dataTransfer.effectAllowed = 'move';
+  e.dataTransfer.setData('text/plain', String(i));
+  e.currentTarget.classList.add('dragging');
+}
+function ledgerDragOver(e, tr) {
+  if (ledgerDragFrom === null) return;
+  e.preventDefault();
+  e.dataTransfer.dropEffect = 'move';
+  const r = tr.getBoundingClientRect();
+  const below = e.clientY > r.top + r.height / 2;
+  tr.classList.toggle('drop-below', below);
+  tr.classList.toggle('drop-above', !below);
+}
+function ledgerDragLeave(tr) { tr.classList.remove('drop-above', 'drop-below'); }
+function ledgerDrop(e, i, tr) {
+  if (ledgerDragFrom === null) return;
+  e.preventDefault();
+  const below = tr.classList.contains('drop-below');
+  let to = i + (below ? 1 : 0);
+  const from = ledgerDragFrom;
+  ledgerDragFrom = null;
+  const [row] = ledgerRows.splice(from, 1);
+  if (from < to) to--;
+  ledgerRows.splice(to, 0, row);
+  renderLedgerEditor();
+  renderLedgerPreview();
+}
+function ledgerDragEnd() {
+  ledgerDragFrom = null;
+  document.querySelectorAll('#ledger-edit-body tr').forEach(t => { t.classList.remove('dragging', 'drop-above', 'drop-below'); t.draggable = false; });
+}
+
+// ── Optional: spread a total Amount Due across rows so every row has the same weekly % ──
+// base = principal + charges, days = Date -> Due Date.
+// r = (Total − Σbase) / Σ(base × days/7);  due = base × (1 + r × days/7), rounded to cents.
+// Leftover cents go to the rows with the largest rounding remainders (or are taken
+// from the rows with the most-rounded-up remainders if the sum overshoots).
+function ledgerSpreadTotal() {
+  const total = parseFloat(document.getElementById('ledger-spread-total').value);
+  if (isNaN(total) || total <= 0) return toast('Enter the total amount to spread', 'error');
+
+  const items = [];
+  ledgerRows.forEach((r, i) => {
+    const p = ledgerNum(r.principal), c = ledgerNum(r.charges) || 0;
+    const days = ledgerDays(r.date, r.dueDate);
+    if (p !== null && p + c > 0 && days) items.push({ i, base: p + c, days });
+  });
+  if (!items.length) return toast('Rows need a principal plus a valid Date and Due Date (more than 0 days)', 'error');
+
+  const sumBase = items.reduce((s, x) => s + x.base, 0);
+  const denom = items.reduce((s, x) => s + x.base * x.days / 7, 0);
+  if (total < sumBase - 0.005) return toast(`Total must be at least the combined principal + charges (${fmt(sumBase)})`, 'error');
+
+  const r = (total - sumBase) / denom;
+  const totalCents = Math.round(total * 100);
+
+  items.forEach(x => {
+    const exact = x.base * (1 + r * x.days / 7) * 100;
+    x.cents = Math.round(exact);
+    x.rem = exact - x.cents; // positive = rounded down, negative = rounded up
+  });
+
+  let leftover = totalCents - items.reduce((s, x) => s + x.cents, 0);
+  if (leftover !== 0) {
+    const step = leftover > 0 ? 1 : -1;
+    const order = [...items].sort((a, b) => step > 0 ? b.rem - a.rem : a.rem - b.rem);
+    for (let k = 0; k < Math.abs(leftover); k++) order[k % order.length].cents += step;
+  }
+
+  items.forEach(x => { ledgerRows[x.i].due = (x.cents / 100).toFixed(2); });
+
+  renderLedgerEditor();
+  renderLedgerPreview();
+  const skipped = ledgerRows.length - items.length;
+  toast(`Spread ${fmt(total)} across ${items.length} row${items.length === 1 ? '' : 's'} (${(r * 100).toFixed(2)}% p/w)` +
+        (skipped ? ` — ${skipped} row${skipped === 1 ? '' : 's'} skipped (missing principal or dates)` : ''), 'success');
+}
+
+async function ledgerClear() {
+  const ok = await showConfirm('Clear all ledger rows?');
+  if (!ok) return;
+  ledgerRows = [ledgerBlank()];
+  document.getElementById('ledger-name').value = '';
+  renderLedgerEditor(); renderLedgerPreview();
+}
+function ledgerSchedulePreview() {
+  clearTimeout(ledgerTimer);
+  ledgerTimer = setTimeout(renderLedgerPreview, 200);
+}
+
+function getLedgerData() {
+  const name = (document.getElementById('ledger-name')?.value || '').trim();
+  const rows = ledgerRows
+    .filter(r => [r.principal, r.charges, r.due].some(v => String(v).trim() !== ''))
+    .map((r, i) => ({
+      n: i + 1,
+      date: toDMY(r.date),
+      principal: ledgerNum(r.principal),
+      duration: ledgerDurText(ledgerDays(r.date, r.dueDate)),
+      charges: ledgerNum(r.charges),
+      due: ledgerNum(r.due),
+      rate: ledgerRateText(ledgerRate(r)),
+      dueDate: toDMY(r.dueDate)
+    }));
+  return { name, rows };
+}
+function ledgerTotals(rows) {
+  return rows.reduce((t, r) => ({ p: t.p + (r.principal || 0), c: t.c + (r.charges || 0), d: t.d + (r.due || 0) }), { p: 0, c: 0, d: 0 });
+}
+
+function loadLedgerLogo() {
+  return new Promise(resolve => {
+    if (ledgerLogoImg) return resolve(ledgerLogoImg);
+    const img = new Image();
+    img.onload = () => { ledgerLogoImg = img; resolve(img); };
+    img.onerror = () => resolve(null);
+    img.src = window.LOGO_DATA_URI || '';
+  });
+}
+
+async function buildLedgerCanvases(name, rows) {
+  const logo = await loadLedgerLogo();
+  const W = 3042, H = 4032, M = 160, TW = W - 2 * M;
+  const hdrH = 130, rowH = 130, totalsH = 180, PAD = 30;
+  const SLOT = 290; // room to the right of each Amount Due value for the grey (x% p/w) note
+  const reserve = 520; // space kept clear above/below for logo, title and page number
+  const perPage = Math.floor((H - 2 * reserve - hdrH - totalsH) / rowH);
+  const pages = Math.max(1, Math.ceil(rows.length / perPage));
+  const FONT = "'SF Pro Display','Segoe UI',Arial,sans-serif";
+  const cols = [
+    { label: '#', w: .06, a: 'center' }, { label: 'Date', w: .14, a: 'left' },
+    { label: 'Principal', w: .15, a: 'right' }, { label: 'Duration', w: .12, a: 'center' },
+    { label: 'Charges', w: .13, a: 'right' }, { label: 'Amount Due', w: .27, a: 'right' },
+    { label: 'Due Date', w: .13, a: 'left' }
+  ];
+  let cx = M;
+  cols.forEach(c => { c.x0 = cx; c.x1 = cx + c.w * TW; cx = c.x1; });
+  const tot = ledgerTotals(rows);
+  const out = [];
+
+  for (let p = 0; p < pages; p++) {
+    const cv = document.createElement('canvas');
+    cv.width = W; cv.height = H;
+    const ctx = cv.getContext('2d');
+    ctx.fillStyle = '#fff'; ctx.fillRect(0, 0, W, H);
+    ctx.textBaseline = 'middle';
+
+    const put = (text, ci, yMid, bold, color) => {
+      if (text === '' || text === null || text === undefined) return;
+      const c = cols[ci];
+      ctx.font = `${bold ? 700 : 400} 52px ${FONT}`;
+      ctx.fillStyle = color || '#000';
+      ctx.textAlign = c.a;
+      const x = c.a === 'left' ? c.x0 + PAD : c.a === 'right' ? c.x1 - PAD - (ci === 5 ? SLOT : 0) : (c.x0 + c.x1) / 2;
+      ctx.fillText(String(text), x, yMid);
+    };
+
+    // Header: logo top-left, title block top-right
+    if (logo) { const lh = 240, lw = logo.width * lh / logo.height; ctx.drawImage(logo, M, M, lw, lh); }
+    ctx.fillStyle = '#000'; ctx.textAlign = 'right';
+    ctx.font = `700 96px ${FONT}`; ctx.fillText('LOAN LEDGER', W - M, M + 60);
+    let ty = M + 160;
+    if (name) { ctx.font = `400 60px ${FONT}`; ctx.fillText(name, W - M, ty); ty += 65; }
+    ctx.font = `400 40px ${FONT}`; ctx.fillText('Generated ' + toDMY(today()), W - M, ty);
+    ctx.fillRect(M, M + 300, TW, 5);
+
+    // Table block, centred vertically on the page
+    const slice = rows.slice(p * perPage, (p + 1) * perPage);
+    const last = p === pages - 1;
+    const blockH = hdrH + slice.length * rowH + (last ? totalsH : 0);
+    let y = Math.round((H - blockH) / 2);
+
+    ctx.fillStyle = '#000'; ctx.fillRect(M, y, TW, hdrH);
+    cols.forEach((c, i) => put(c.label, i, y + hdrH / 2, true, '#fff'));
+    y += hdrH;
+
+    slice.forEach(r => {
+      const mid = y + rowH / 2;
+      put(r.n, 0, mid); put(r.date, 1, mid); put(ledgerMoney(r.principal), 2, mid);
+      put(r.duration, 3, mid); put(ledgerMoney(r.charges), 4, mid); put(ledgerMoney(r.due), 5, mid);
+      if (r.rate) { ctx.font = `400 36px ${FONT}`; ctx.fillStyle = '#777'; ctx.textAlign = 'left'; ctx.fillText(r.rate, cols[5].x1 - PAD - SLOT + 20, mid); }
+      put(r.dueDate, 6, mid);
+      y += rowH;
+      ctx.fillStyle = '#000'; ctx.fillRect(M, y - 1, TW, 2);
+    });
+
+    if (last) {
+      ctx.fillStyle = '#000'; ctx.fillRect(M, y - 2, TW, 6);
+      const mid = y + 85;
+      put('TOTAL', 1, mid, true); put(fmt(tot.p), 2, mid, true);
+      put(fmt(tot.c), 4, mid, true); put(fmt(tot.d), 5, mid, true);
+      ctx.fillStyle = '#000'; ctx.fillRect(M, y + totalsH - 6, TW, 6);
+      if (rows.some(r => r.rate)) { ctx.fillStyle = '#777'; ctx.textAlign = 'left'; ctx.font = `400 38px ${FONT}`; ctx.fillText('p/w = per week', M + PAD, y + totalsH + 50); }
+    }
+
+    if (pages > 1) {
+      ctx.fillStyle = '#000'; ctx.textAlign = 'center'; ctx.font = `400 36px ${FONT}`;
+      ctx.fillText(`Page ${p + 1} of ${pages}`, W / 2, H - 80);
+    }
+    out.push(cv);
+  }
+  return out;
+}
+
+function buildLedgerHtml(name, rows) {
+  const per = 16, chunks = [];
+  for (let i = 0; i < rows.length; i += per) chunks.push(rows.slice(i, i + per));
+  if (!chunks.length) chunks.push([]);
+  const tot = ledgerTotals(rows);
+  const logoTag = window.LOGO_DATA_URI ? `<img src="${window.LOGO_DATA_URI}">` : '';
+  const pagesHtml = chunks.map((ch, pi) => {
+    const last = pi === chunks.length - 1;
+    const body = ch.map(r => `<tr><td class="c">${r.n}</td><td>${esc(r.date)}</td><td class="r">${ledgerMoney(r.principal)}</td><td class="c">${esc(r.duration)}</td><td class="r">${ledgerMoney(r.charges)}</td><td class="r"><span class="amt">${ledgerMoney(r.due)}</span><span class="g">${esc(r.rate)}</span></td><td>${esc(r.dueDate)}</td></tr>`).join('');
+    const totRow = last ? `<tr class="tot"><td></td><td>TOTAL</td><td class="r">${fmt(tot.p)}</td><td></td><td class="r">${fmt(tot.c)}</td><td class="r"><span class="amt">${fmt(tot.d)}</span><span class="g"></span></td><td></td></tr>` : '';
+    return `<div class="pg"${last ? '' : ' style="page-break-after:always"'}>
+  <div class="hd">
+    <div>${logoTag}</div>
+    <div class="ttl"><h1>LOAN LEDGER</h1>${name ? `<div>${esc(name)}</div>` : ''}<div style="font-size:9pt">Generated ${toDMY(today())}</div></div>
+  </div>
+  <div class="mid"><table>
+    <thead><tr><th class="c">#</th><th>Date</th><th class="r">Principal</th><th class="c">Duration</th><th class="r">Charges</th><th class="r"><span class="amt">Amount Due</span><span class="g"></span></th><th>Due Date</th></tr></thead>
+    <tbody>${body}${totRow}</tbody>
+  </table></div>
+  ${last && rows.some(r => r.rate) ? '<div class="legend">p/w = per week</div>' : ''}
+  ${chunks.length > 1 ? `<div class="pn">Page ${pi + 1} of ${chunks.length}</div>` : ''}
+</div>`;
+  }).join('');
+  return `<!DOCTYPE html><html><head><meta charset="UTF-8"><style>
+@page{size:A4;margin:14mm}
+*{box-sizing:border-box}
+body{margin:0;font-family:'Segoe UI',Arial,sans-serif;color:#000;background:#fff}
+.pg{height:262mm;display:flex;flex-direction:column}
+.hd{display:flex;justify-content:space-between;align-items:flex-start;border-bottom:1.2mm solid #000;padding-bottom:6mm;flex-shrink:0}
+.hd img{height:26mm}
+.ttl{text-align:right}.ttl h1{margin:0;font-size:22pt;letter-spacing:1px}.ttl div{font-size:11pt;margin-top:2mm}
+.mid{flex:1;display:flex;align-items:center}
+.mid table{width:100%}
+table{border-collapse:collapse;font-size:10pt}
+th{background:#000;color:#fff;padding:3mm 2.5mm;text-align:left;font-size:9pt;letter-spacing:.5px;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+td{padding:3mm 2.5mm;border-bottom:.3mm solid #000}
+.c{text-align:center}.r{text-align:right}
+.amt{display:inline-block;min-width:26mm;text-align:right}
+.g{display:inline-block;width:30mm;text-align:left;margin-left:2mm;color:#777;font-size:8pt;font-weight:400}
+.legend{color:#777;font-size:8.5pt;margin:3mm 0;flex-shrink:0}
+tr.tot td{border-top:1mm solid #000;border-bottom:1mm solid #000;font-weight:700}
+.pn{text-align:center;font-size:9pt;flex-shrink:0}
+</style></head><body>${pagesHtml}</body></html>`;
+}
+
+async function renderLedgerPreview() {
+  const token = ++ledgerRenderToken;
+  const box = document.getElementById('ledger-preview');
+  const info = document.getElementById('ledger-info');
+  const { name, rows } = getLedgerData();
+  if (!rows.length) {
+    box.innerHTML = '<div class="empty-state"><div class="icon">📒</div><p>Enter at least one row to preview the ledger</p></div>';
+    info.textContent = '';
+    return;
+  }
+  const canvases = await buildLedgerCanvases(name, rows);
+  if (token !== ledgerRenderToken) return;
+  box.innerHTML = '';
+  canvases.forEach(c => {
+    c.style.cssText = 'width:100%;max-width:560px;height:auto;display:block;border:1px solid var(--border);margin:0 auto 14px;background:#fff';
+    box.appendChild(c);
+  });
+  info.textContent = `· ${rows.length} row${rows.length === 1 ? '' : 's'} · ${canvases.length} image page${canvases.length === 1 ? '' : 's'}`;
+}
+
+async function exportLedger(type) {
+  const { name, rows } = getLedgerData();
+  if (!rows.length) return toast('Enter at least one row first', 'error');
+  const safe = name.replace(/[^a-z0-9]+/gi, '-').replace(/^-|-$/g, '');
+  const base = `Loan-Ledger${safe ? '-' + safe : ''}-${toDMY(today())}`;
+  try {
+    if (type === 'pdf') {
+      const r = await window.api.exportLedger({ type: 'pdf', name: base + '.pdf', html: buildLedgerHtml(name, rows) });
+      if (!r.canceled) toast('Ledger PDF saved', 'success');
+    } else {
+      const canvases = await buildLedgerCanvases(name, rows);
+      for (let i = 0; i < canvases.length; i++) {
+        const fname = canvases.length > 1 ? `${base}-p${i + 1}.png` : base + '.png';
+        const r = await window.api.exportLedger({ type: 'png', name: fname, dataUrl: canvases[i].toDataURL('image/png') });
+        if (r.canceled) return;
+      }
+      toast(`Ledger image${canvases.length > 1 ? 's' : ''} saved`, 'success');
+    }
+  } catch (e) {
+    toast('Export failed: ' + e.message, 'error');
+  }
 }
 
 // ════════════════════════════════════════════════
@@ -1359,6 +2058,310 @@ function initCalculator() {
   const dateEl = document.getElementById('calc-loan-date');
   if (dateEl && !dateEl.value) dateEl.value = today();
   updateCalcResult();
+  initChainCalculator();
+}
+
+// ════════════════════════════════════════════════
+// CHAIN CALCULATOR
+// ════════════════════════════════════════════════
+// A chain is several amounts handed out on different dates that are all repaid
+// on ONE proposed repayment date. Each row accrues the system's daily rate on
+// its own amount from its own date to the repayment date; transfer charges are
+// added on top (no interest on charges). Total is floored to the nearest K5.
+//   e.g. 1575 (+0) on 25-09 and 1000 (+3) on 02-10, repaid 15-10 -> 3,213.71 -> K3,210
+let chainState = { id: null, rows: [], rate: '', running: false }; // rate '' = use the default DAILY_INTEREST_RATE
+let chainsCache = [];
+
+// Running chain: no fixed repayment date - the "repayment date" is always today, so
+// every day that passes adds another day of interest to every row.
+function chainRepayDate() {
+  return chainState.running ? localISO(new Date()) : document.getElementById('chain-repay-date').value;
+}
+function chainApplyRunningUI() {
+  const cb = document.getElementById('chain-running'), inp = document.getElementById('chain-repay-date');
+  cb.checked = !!chainState.running;
+  inp.disabled = !!chainState.running;
+  if (chainState.running) inp.value = localISO(new Date());
+}
+function chainToggleRunning(on) {
+  chainState.running = !!on;
+  if (!on) document.getElementById('chain-repay-date').value = '';
+  chainApplyRunningUI();
+  chainRecalc();
+}
+let chainTimerOn = false;
+function chainStartTimer() {
+  if (chainTimerOn) return;
+  chainTimerOn = true;
+  setInterval(() => {
+    if (!chainState.running) return;
+    const old = document.getElementById('chain-repay-date').value;
+    if (old !== localISO(new Date())) { chainApplyRunningUI(); chainRecalc(); renderChainSidebar(); }
+  }, 60000);
+}
+
+function chainBlankRow() { return { date: today(), principal: '', charges: '' }; }
+
+function setCalcTab(tab) {
+  document.getElementById('calc-tab-single').style.display = tab === 'single' ? '' : 'none';
+  document.getElementById('calc-tab-chain').style.display = tab === 'chain' ? '' : 'none';
+  document.querySelectorAll('#calc-tabs .filter-tab').forEach(t => t.classList.toggle('active', t.dataset.tab === tab));
+}
+
+async function initChainCalculator() {
+  if (!chainState.rows.length) chainState.rows = [chainBlankRow()];
+  chainStartTimer();
+  chainApplyRunningUI();
+  renderChainRows();
+  try {
+    await refreshState();
+  } catch (e) {}
+  await loadChains();
+}
+
+// Pure calculation so it can be used for the live editor and the saved-chain sidebar.
+// Daily rate used by a chain: the user's custom rate if it is a valid number >= 0,
+// otherwise the system default (1.43% a day).
+function chainRateValue(rate) {
+  if (rate === '' || rate === null || rate === undefined) return DAILY_INTEREST_RATE;
+  const n = Number(rate);
+  return Number.isFinite(n) && n >= 0 ? n : DAILY_INTEREST_RATE;
+}
+function chainIsCustomRate(rate) {
+  return rate !== '' && rate !== null && rate !== undefined && Number.isFinite(Number(rate)) && Number(rate) >= 0;
+}
+
+function chainCompute(rows, repayDate, rate) {
+  const dailyRate = chainRateValue(rate);
+  let principal = 0, charges = 0, total = 0, counted = 0;
+  const out = rows.map(r => {
+    const p = ledgerNum(r.principal), c = ledgerNum(r.charges) || 0;
+    const days = repayDate ? ledgerDays(r.date, repayDate) : null;
+    if (p === null || p <= 0 || days === null) return { days, ratePct: null, due: null };
+    const ratePct = days * dailyRate;
+    const due = p * (1 + ratePct / 100) + c;
+    principal += p; charges += c; total += due; counted++;
+    return { days, ratePct, due };
+  });
+  return { rows: out, principal, charges, interest: total - principal - charges, total, counted,
+           suggested: Math.floor((total + 1e-9) / 5) * 5 };
+}
+
+function renderChainRows() {
+  const inp = 'style="padding:6px 8px"';
+  document.getElementById('chain-rows').innerHTML = chainState.rows.map((r, i) => `<tr>
+    <td class="fs-12 text-muted">${i + 1}</td>
+    <td><input type="date" ${inp} value="${esc(r.date)}" oninput="chainEdit(${i},'date',this.value)"></td>
+    <td><input type="number" ${inp} min="0" step="0.01" placeholder="0.00" value="${esc(r.principal)}" oninput="chainEdit(${i},'principal',this.value)"></td>
+    <td><input type="number" ${inp} min="0" step="0.01" placeholder="0.00" value="${esc(r.charges)}" oninput="chainEdit(${i},'charges',this.value)"></td>
+    <td id="chain-days-${i}" class="fs-12 text-muted" style="white-space:nowrap">—</td>
+    <td id="chain-rate-${i}" class="fs-12 text-muted" style="white-space:nowrap">—</td>
+    <td id="chain-due-${i}" class="text-right fw-700" style="white-space:nowrap">—</td>
+    <td><button class="btn-icon" title="Remove row" onclick="chainRemoveRow(${i})">🗑</button></td>
+  </tr>`).join('');
+  chainRecalc();
+}
+
+function chainRecalc() {
+  const repay = chainRepayDate();
+  const c = chainCompute(chainState.rows, repay, chainState.rate);
+  chainUpdateRateHint();
+  document.getElementById('chain-asof').textContent = repay ? (chainState.running ? `running · as of today (${fd(repay)})` : `repaid ${fd(repay)}`) : '';
+  c.rows.forEach((x, i) => {
+    const r = chainState.rows[i];
+    const d = document.getElementById('chain-days-' + i), rt = document.getElementById('chain-rate-' + i), du = document.getElementById('chain-due-' + i);
+    if (!d) return;
+    if (repay && r.date && x.days === null) { d.textContent = 'Check dates'; d.className = 'fs-12 text-red'; }
+    else { d.textContent = x.days === null ? '—' : `${x.days} day${x.days === 1 ? '' : 's'}`; d.className = 'fs-12 text-muted'; }
+    rt.textContent = x.ratePct === null ? '—' : x.ratePct.toFixed(2) + '%';
+    du.textContent = x.due === null ? '—' : fmt(x.due);
+  });
+  const has = c.counted > 0;
+  document.getElementById('chain-t-rows').textContent = has ? c.counted : '—';
+  document.getElementById('chain-t-principal').textContent = has ? fmt(c.principal) : '—';
+  document.getElementById('chain-t-charges').textContent = has ? fmt(c.charges) : '—';
+  document.getElementById('chain-t-interest').textContent = has ? fmt(c.interest) : '—';
+  document.getElementById('chain-t-total').textContent = has ? fmt(c.total) : '—';
+  document.getElementById('chain-t-suggested').textContent = has ? fmt(c.suggested) : '—';
+  return c;
+}
+
+function chainRateEdit(val) { chainState.rate = val; chainRecalc(); }
+function chainUpdateRateHint() {
+  const el = document.getElementById('chain-rate-hint');
+  if (!el) return;
+  const custom = chainIsCustomRate(chainState.rate);
+  el.textContent = custom ? `Custom rate: ${Number(chainState.rate)}% a day (clear to use 1.43%)` : 'Using default 1.43% a day';
+}
+
+function chainEdit(i, key, val) { chainState.rows[i][key] = val; chainRecalc(); }
+function chainAddRow() { chainState.rows.push(chainBlankRow()); renderChainRows(); }
+function chainRemoveRow(i) {
+  chainState.rows.splice(i, 1);
+  if (!chainState.rows.length) chainState.rows.push(chainBlankRow());
+  renderChainRows();
+}
+
+function chainNew() {
+  chainState = { id: null, rows: [chainBlankRow()], rate: '', running: false };
+  document.getElementById('chain-debtor').value = '';
+  document.getElementById('chain-rate').value = '';
+  document.getElementById('chain-repay-date').value = '';
+  chainApplyRunningUI();
+  chainUpdateLabel();
+  renderChainRows();
+  renderChainSidebar();
+}
+
+function chainUpdateLabel() {
+  document.getElementById('chain-editing').textContent = chainState.id ? `editing saved chain #${chainState.id}` : 'new chain';
+}
+
+async function loadChains() {
+  try { chainsCache = (await window.api.getChains()) || []; } catch (e) { chainsCache = []; }
+  renderChainSidebar();
+}
+
+function chainParse(rec) {
+  try {
+    const d = JSON.parse(rec.chain);
+    return { repaymentDate: d.repaymentDate || '', rows: Array.isArray(d.rows) ? d.rows : [], rate: (d.rate === undefined || d.rate === null) ? '' : d.rate, running: !!d.running };
+  } catch (e) { return { repaymentDate: '', rows: [], rate: '', running: false }; }
+}
+
+function renderChainSidebar() {
+  const el = document.getElementById('chain-sidebar');
+  const q = (document.getElementById('chain-search')?.value || '').toLowerCase();
+  const list = chainsCache.filter(c => !q || c.debtor.toLowerCase().includes(q));
+  if (!list.length) { el.innerHTML = '<div class="empty-state" style="padding:20px"><p>No saved chains</p></div>'; return; }
+  const groups = {};
+  list.forEach(c => { (groups[c.debtor] = groups[c.debtor] || []).push(c); });
+  el.innerHTML = Object.keys(groups).map(name => `<div class="chain-group">${esc(name)}</div>` +
+    groups[name].map(c => {
+      const d = chainParse(c);
+      const t = chainCompute(d.rows, d.running ? localISO(new Date()) : d.repaymentDate, d.rate);
+      return `<div class="chain-item ${c.chainID === chainState.id ? 'active' : ''}" onclick="chainLoad(${c.chainID})">
+        <div class="fw-700 fs-12">${d.running ? '🔄 Running · to today' : 'Repay ' + (d.repaymentDate ? fd(d.repaymentDate) : '—')}</div>
+        <div class="fs-12 text-muted">${d.rows.length} row${d.rows.length === 1 ? '' : 's'} · ${t.counted ? fmt(t.suggested) : '—'}</div>
+        <div class="flex-row" style="gap:4px;margin-top:6px">
+          <button class="btn-icon" title="Send to Ledger" onclick="event.stopPropagation();chainSendSaved(${c.chainID})">📒</button>
+          <button class="btn-icon" title="Delete chain" onclick="event.stopPropagation();chainDelete(${c.chainID})">🗑</button>
+        </div>
+      </div>`;
+    }).join('')).join('');
+}
+
+function chainLoad(id) {
+  const rec = chainsCache.find(c => c.chainID === id);
+  if (!rec) return;
+  const d = chainParse(rec);
+  chainState = {
+    id,
+    rows: d.rows.length ? d.rows.map(r => ({ date: r.date || '', principal: r.principal ?? '', charges: r.charges ?? '' })) : [chainBlankRow()],
+    rate: d.rate,
+    running: d.running
+  };
+  document.getElementById('chain-rate').value = d.rate;
+  document.getElementById('chain-debtor').value = rec.debtor;
+  document.getElementById('chain-repay-date').value = d.repaymentDate;
+  chainApplyRunningUI();
+  chainUpdateLabel();
+  renderChainRows();
+  renderChainSidebar();
+}
+
+async function chainSave(asNew) {
+  const debtor = document.getElementById('chain-debtor').value.trim();
+  const running = !!chainState.running;
+  const repaymentDate = document.getElementById('chain-repay-date').value;
+  const rows = chainState.rows
+    .filter(r => String(r.principal).trim() !== '')
+    .map(r => ({ date: r.date, principal: ledgerNum(r.principal), charges: ledgerNum(r.charges) || 0 }));
+  if (!debtor) return toast('Enter the debtor this chain belongs to', 'error');
+  if (!running && !repaymentDate) return toast('Set the proposed repayment date (or tick Running chain)', 'error');
+  if (!rows.length) return toast('Add at least one row with an amount', 'error');
+  try {
+    const r = await window.api.saveChain({
+      chainID: asNew ? null : chainState.id,
+      debtor,
+      chain: JSON.stringify(Object.assign(running ? { running: true } : { repaymentDate }, chainIsCustomRate(chainState.rate) ? { rate: Number(chainState.rate) } : {}, { rows }))
+    });
+    chainState.id = r.chainID;
+    chainUpdateLabel();
+    await loadChains();
+    toast('Chain saved', 'success');
+  } catch (e) {
+    toast('Error saving chain: ' + e.message, 'error');
+  }
+}
+
+async function chainDelete(id) {
+  const ok = await showConfirm('Delete this saved chain?');
+  if (!ok) return;
+  await window.api.deleteChain(id);
+  if (chainState.id === id) { chainState.id = null; chainUpdateLabel(); }
+  await loadChains();
+  toast('Chain deleted', 'info');
+}
+
+// Closes the loaded chain: takes it off the workspace and resets the editor.
+// Nothing is deleted - a saved chain stays in the sidebar and can be loaded again
+// (use the sidebar's trash button to delete one). Only a chain that was never
+// saved and has amounts entered asks first, since it can't be reopened later.
+async function chainClose() {
+  const hasData = chainState.rows.some(r => String(r.principal).trim() !== '');
+  if (!chainState.id && hasData) {
+    const ok = await showConfirm('This chain has not been saved, so closing it will clear it from the workspace. Close anyway?');
+    if (!ok) return;
+  }
+  chainNew();
+  toast('Chain closed', 'info');
+}
+
+// Themed debtor dropdown
+let comboNames = [];
+function comboOpen() {
+  const q = document.getElementById('chain-debtor').value.trim().toLowerCase();
+  comboNames = state.debtors.map(d => d.name).filter(n => !q || n.toLowerCase().includes(q));
+  const m = document.getElementById('chain-debtor-menu');
+  if (!comboNames.length) { m.style.display = 'none'; return; }
+  m.innerHTML = comboNames.map((n, i) => `<div class="combo-item" onmousedown="comboPick(${i})">${esc(n)}</div>`).join('');
+  m.style.display = 'block';
+}
+function comboClose() { document.getElementById('chain-debtor-menu').style.display = 'none'; }
+function comboToggle() {
+  const m = document.getElementById('chain-debtor-menu');
+  if (m.style.display === 'block') comboClose(); else { document.getElementById('chain-debtor').focus(); comboOpen(); }
+}
+function comboPick(i) { document.getElementById('chain-debtor').value = comboNames[i]; comboClose(); }
+
+function chainSendSaved(id) { chainLoad(id); chainToLedger(); }
+
+// Loads the current chain into the Loan Ledger: each row becomes a ledger row
+// (Date, Principal, Charges, Amount Due = that row's amount due) with the
+// proposed repayment date as the Due Date. The chain's suggested total is
+// pre-filled in "Spread a Total" in case you want one rounded total.
+async function chainToLedger() {
+  const repay = chainRepayDate();
+  if (!repay) return toast('Set the proposed repayment date first (or tick Running chain)', 'error');
+  const c = chainCompute(chainState.rows, repay, chainState.rate);
+  const valid = chainState.rows.map((r, i) => ({ r, x: c.rows[i] })).filter(o => o.x.due !== null);
+  if (!valid.length) return toast('Add at least one valid row (amount and a date on/before the repayment date)', 'error');
+  if (ledgerRows.some(r => [r.principal, r.charges, r.due].some(v => String(v).trim() !== ''))) {
+    const ok = await showConfirm('Replace the current Loan Ledger entries with this chain?');
+    if (!ok) return;
+  }
+  ledgerRows = valid.map(o => ({
+    date: o.r.date,
+    principal: String(ledgerNum(o.r.principal)),
+    charges: ledgerNum(o.r.charges) ? String(ledgerNum(o.r.charges)) : '',
+    due: o.x.due.toFixed(2),
+    dueDate: repay
+  }));
+  document.getElementById('ledger-name').value = document.getElementById('chain-debtor').value.trim();
+  document.getElementById('ledger-spread-total').value = c.suggested.toFixed(2);
+  await nav('ledger');
+  toast('Chain loaded into the Loan Ledger', 'success');
 }
 
 function updateCalcResult() {
@@ -1441,10 +2444,15 @@ async function openLoanDetail(loanId) {
   }
   if (!loan) return toast('Loan not found', 'error');
 
-  const [repayments, lineage] = await Promise.all([
-    window.api.getRepaymentsByLoan(loanId),
-    window.api.getLoanLineage(loanId)
-  ]);
+  const lineage = await window.api.getLoanLineage(loanId);
+  // Repayment history covers the whole extension chain; each payment keeps a
+  // reference to the loan it was paid to so lateness is judged against that loan's due date.
+  const chainLoans = (lineage && lineage.length > 1) ? lineage : [loan];
+  const isChain = chainLoans.length > 1;
+  const repLists = await Promise.all(chainLoans.map(x => window.api.getRepaymentsByLoan(x.id)));
+  const repayments = [];
+  chainLoans.forEach((x, i) => (repLists[i] || []).forEach(r => repayments.push({ ...r, _loan: x })));
+  repayments.sort((a, b) => a.repayment_date < b.repayment_date ? 1 : a.repayment_date > b.repayment_date ? -1 : b.id - a.id);
   const overpaid = isOverpaid(loan);
   const credit = overpayAmount(loan);
   const rawPct = loan.repayment_amount > 0 ? (loan.total_repaid / loan.repayment_amount) * 100 : 0;
@@ -1460,8 +2468,8 @@ async function openLoanDetail(loanId) {
     <div class="table-wrap"><table>
       <thead><tr><th>Loan Date</th><th>Due Date</th><th class="text-right">Loaned</th><th class="text-right">Repayable</th><th class="text-right">Repaid</th><th>Status</th><th></th></tr></thead>
       <tbody>${lineage.map(x => `<tr style="${x.id === loan.id ? 'background:var(--surface3)' : ''}">
-        <td class="fs-12">${x.loan_date}</td>
-        <td class="fs-12">${hasDueDate(x) ? x.due_date : '<span class="text-muted">No due date</span>'}</td>
+        <td class="fs-12">${fd(x.loan_date)}</td>
+        <td class="fs-12">${hasDueDate(x) ? fd(x.due_date) : '<span class="text-muted">No due date</span>'}</td>
         <td class="text-right">${fmt(x.loan_amount)}</td>
         <td class="text-right">${fmt(x.repayment_amount)}</td>
         <td class="text-right text-green">${fmt(x.total_repaid)}</td>
@@ -1493,8 +2501,8 @@ async function openLoanDetail(loanId) {
     </div>` : ''}
     <div class="loan-detail mb-12">
       <div class="ld-row"><span>Debtor</span><span class="fw-700">${esc(loan.debtor_name)}</span></div>
-      <div class="ld-row"><span>Loan Date</span><span>${loan.loan_date}</span></div>
-      <div class="ld-row"><span>Due Date</span><span class="${loan.is_overdue && !overpaid ? 'text-red fw-700' : ''}">${hasDueDate(loan) ? loan.due_date : '<span class="text-muted">No due date</span>'}${loan.is_overdue && !overpaid ? ' ⚠ OVERDUE' : ''}</span></div>
+      <div class="ld-row"><span>Loan Date</span><span>${fd(loan.loan_date)}</span></div>
+      <div class="ld-row"><span>Due Date</span><span class="${loan.is_overdue && !overpaid ? 'text-red fw-700' : ''}">${hasDueDate(loan) ? fd(loan.due_date) : '<span class="text-muted">No due date</span>'}${loan.is_overdue && !overpaid ? ' ⚠ OVERDUE' : ''}</span></div>
       <div class="ld-row"><span>Amount Loaned</span><span class="fw-700">${fmt(loan.loan_amount)}</span></div>
       <div class="ld-row"><span>Transfer Charges</span><span>${fmt(loan.transfer_charges)}</span></div>
       <div class="ld-row"><span>Repayment Amount</span><span class="fw-700 text-yellow">${fmt(loan.repayment_amount)}</span></div>
@@ -1525,13 +2533,14 @@ async function openLoanDetail(loanId) {
       </div>
     </div>
     ${repayments.length ? `<div class="table-wrap"><table>
-      <thead><tr><th>Date</th><th class="text-right">Amount</th><th>Notes</th><th></th><th></th></tr></thead>
+      <thead><tr><th>Date</th><th class="text-right">Amount</th><th>Notes</th>${isChain ? '<th>Paid To Loan</th>' : ''}<th></th><th></th></tr></thead>
       <tbody>${repayments.map(r => `<tr>
-        <td class="fs-12">${r.repayment_date}</td>
+        <td class="fs-12">${fd(r.repayment_date)}</td>
         <td class="text-right fw-700 text-green">${fmt(r.amount)}</td>
         <td class="text-muted fs-12">${r.notes || '—'}</td>
-        <td>${lateBadge(r.repayment_date, loan.due_date)}</td>
-        <td><button class="btn-icon" onclick="deleteRepayment(${r.id}, ${loan.id})">🗑</button></td>
+        ${isChain ? `<td class="fs-12 text-muted" title="Loan taken ${fd(r._loan.loan_date)}">${fd(r._loan.loan_date)} → ${hasDueDate(r._loan) ? fd(r._loan.due_date) : 'no due date'}</td>` : ''}
+        <td>${lateBadge(r.repayment_date, r._loan.due_date)}</td>
+        <td><button class="btn-icon" onclick="deleteRepayment(${r.id}, ${r._loan.id})">🗑</button></td>
       </tr>`).join('')}</tbody>
     </table></div>` : '<div class="empty-state" style="padding:16px"><p>No repayments yet</p></div>'}
     ${lineageHtml}
@@ -1566,8 +2575,8 @@ async function openDebtorDetail(debtorId, name) {
           ? `<span class="badge badge-purple">Overpaid</span>`
           : `<span class="badge ${l.status === 'active' ? 'badge-yellow' : 'badge-green'}">${l.status}</span>`;
         return `<tr>
-          <td class="fs-12">${l.loan_date}</td>
-          <td class="fs-12">${hasDueDate(l) ? l.due_date : '<span class="text-muted">No due date</span>'}</td>
+          <td class="fs-12">${fd(l.loan_date)}</td>
+          <td class="fs-12">${hasDueDate(l) ? fd(l.due_date) : '<span class="text-muted">No due date</span>'}</td>
           <td class="text-right">${fmt(l.loan_amount)}</td>
           <td class="text-right">${fmt(l.repayment_amount)}</td>
           <td class="text-right text-green">${fmt(l.total_repaid)}</td>
@@ -1659,7 +2668,7 @@ async function openExtendModal(loanId) {
   document.getElementById('extend-date').value = today();
   document.getElementById('extend-due-date').value = '';
   document.getElementById('extend-repayment').value = '';
-  document.getElementById('extend-notes').value = `Extension of loan #${loan.id} (${loan.loan_date} → ${loan.due_date})`;
+  document.getElementById('extend-notes').value = `Extension of loan #${loan.id} (${fd(loan.loan_date)} → ${fd(loan.due_date)})`;
 
   extendState = { basePrincipal: Math.max(0, loan.balance || 0), addedPrincipal: 0, baseCharges: 0, addedCharges: 0 };
   document.getElementById('extend-amount-add').value = '';
@@ -1809,10 +2818,33 @@ async function submitRepayment() {
   if (!amount || amount <= 0) return toast('Enter a valid amount', 'error');
   if (!repayment_date) return toast('Select a repayment date', 'error');
   try {
+    // Early payment check (v1.12.0): a payment larger than the amount loaned,
+    // made before the loan's due date.
+    let loan = state.loans.find(l => l.id === loan_id) || state.allLoans.find(l => l.id === loan_id);
+    if (!loan) { await refreshState(); loan = state.loans.find(l => l.id === loan_id); }
+    const isEarly = !!(loan && loan.status === 'active' && hasDueDate(loan) &&
+      amount > (loan.loan_amount || 0) && repayment_date < loan.due_date);
+
     await window.api.addRepayment({ loan_id, amount, repayment_date, notes });
     closeModal('modal-repayment');
     toast('Repayment recorded', 'success');
     closeModal('modal-loan-detail');
+
+    if (isEarly) {
+      // add-repayment auto-closes the loan when it is paid in full; otherwise ask.
+      const fresh = (await window.api.getAllLoans() || []).find(l => l.id === loan_id);
+      if (fresh && fresh.status === 'closed') {
+        // Already settled in full: just move the due date to the payment date.
+        await window.api.setLoanDueDate(loan_id, repayment_date);
+        toast(`Due date changed to ${fd(repayment_date)}`, 'info');
+      } else {
+        const ok = await showConfirm(`This payment of ${fmt(amount)} is more than the ${fmt(loan.loan_amount)} loaned and was made before the due date (${fd(loan.due_date)}). Close this loan? It will be settled at the amount paid and its due date moved to ${fd(repayment_date)}.`);
+        if (ok) {
+          await window.api.closeLoanEarly(loan_id, repayment_date);
+          toast(`Loan closed — settled at ${fmt(fresh ? fresh.total_repaid : amount)}, due date now ${fd(repayment_date)}`, 'success');
+        }
+      }
+    }
     await loadPage(currentPage());
   } catch (e) {
     toast('Error recording repayment: ' + e.message, 'error');
@@ -1928,7 +2960,7 @@ function currentPage() {
 // INIT
 // ════════════════════════════════════════════════
 document.addEventListener('DOMContentLoaded', async () => {
-  document.getElementById('sidebar-date').textContent = today();
+  document.getElementById('sidebar-date').textContent = fd(today());
   document.querySelector('.nav-item').classList.add('active');
   await loadDashboard();
 });
