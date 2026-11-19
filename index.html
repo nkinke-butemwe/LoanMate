@@ -347,6 +347,7 @@ input:-webkit-autofill, input:-webkit-autofill:focus { -webkit-box-shadow: 0 0 0
       <div class="nav-item" onclick="nav('calculator')"><span class="icon">🧮</span> Loan Calculator</div>
     </nav>
     <div class="sidebar-footer">
+      <button class="btn btn-ghost btn-sm" style="width:100%;margin-bottom:10px" onclick="exportBackup()">💾 Export Backup</button>
       <div class="user-badge">
         <div class="avatar">L</div>
         <div>
@@ -971,7 +972,7 @@ let state = {
 let historyFilter = 'all';
 
 const fmt = (n) => 'K ' + Number(n || 0).toLocaleString('en-ZM', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-const today = () => new Date().toISOString().slice(0, 10);
+const today = () => localISO(new Date()); // local date, not UTC
 // Display helper: yyyy-mm-dd (storage format) -> dd-mm-yyyy (what the user sees).
 const fd = (s) => (s && /^\d{4}-\d{2}-\d{2}/.test(s)) ? s.slice(8, 10) + '-' + s.slice(5, 7) + '-' + s.slice(0, 4) : (s || '');
 
@@ -1320,10 +1321,10 @@ function renderLoanRow(l, isActive) {
     <td>
       <div class="flex-row" style="gap:4px">
         <button class="btn-icon" title="View Details" onclick="openLoanDetail(${l.id})">👁</button>
-        ${isActive ? `<button class="btn-icon" title="Add Repayment" onclick="openRepayModal(${l.id}, '${esc(l.debtor_name)}', ${l.balance})">💳</button>` : ''}
+        ${isActive ? `<button class="btn-icon" title="Add Repayment" onclick="openRepayModal(${l.id})">💳</button>` : ''}
         ${isActive ? `<button class="btn-icon" title="Extend Loan" onclick="openExtendModal(${l.id})">🔁</button>` : ''}
-        ${l.status === 'active' ? `<button class="btn-icon" title="Mark as Bad Debt" onclick="markBadDebt(${l.id}, '${esc(l.debtor_name)}')">💀</button>` : ''}
-        ${l.status === 'bad_debt' ? `<button class="btn-icon" title="Undo Bad Debt" onclick="undoBadDebt(${l.id}, '${esc(l.debtor_name)}')">↩️</button>` : ''}
+        ${l.status === 'active' ? `<button class="btn-icon" title="Mark as Bad Debt" onclick="markBadDebt(${l.id})">💀</button>` : ''}
+        ${l.status === 'bad_debt' ? `<button class="btn-icon" title="Undo Bad Debt" onclick="undoBadDebt(${l.id})">↩️</button>` : ''}
         <button class="btn-icon" title="Delete" onclick="deleteLoan(${l.id})">🗑</button>
       </div>
     </td>
@@ -1352,10 +1353,10 @@ function renderDebtorsPage() {
       <td class="text-right fw-700 ${d.total_outstanding > 0 ? 'text-red' : 'text-green'}">${fmt(d.total_outstanding)}</td>
       <td>
         <div class="flex-row" style="gap:4px">
-          <button class="btn-icon" title="View Loans" onclick="openDebtorDetail(${d.id}, '${esc(d.name)}')">👁</button>
+          <button class="btn-icon" title="View Loans" onclick="openDebtorDetail(${d.id})">👁</button>
           <button class="btn-icon" title="New Loan" onclick="openAddLoanModal(${d.id})">+ Loan</button>
           <button class="btn-icon" title="Edit Debtor" onclick="openEditDebtor(${d.id})">✏️</button>
-          <button class="btn-icon" title="Delete Debtor" onclick="deleteDebtor(${d.id}, '${esc(d.name)}')">🗑</button>
+          <button class="btn-icon" title="Delete Debtor" onclick="deleteDebtor(${d.id})">🗑</button>
         </div>
       </td>
     </tr>`).join('');
@@ -2527,9 +2528,9 @@ async function openLoanDetail(loanId) {
       <div style="font-size:11px;font-weight:600;color:var(--text2);text-transform:uppercase;letter-spacing:0.5px">Repayment History</div>
       <div class="flex-row" style="gap:8px">
         ${!isExtended && !isBadDebt ? `<button class="btn btn-secondary btn-sm" onclick="openExtendModal(${loan.id})">🔁 Extend Loan</button>` : ''}
-        ${!isExtended && !isBadDebt ? `<button class="btn btn-primary btn-sm" onclick="openRepayModal(${loan.id}, '${esc(loan.debtor_name)}', ${loan.balance})">+ Add Payment</button>` : ''}
-        ${loan.status === 'active' ? `<button class="btn btn-secondary btn-sm" style="border-color:var(--baddebt);color:#ff6b6b" onclick="markBadDebt(${loan.id}, '${esc(loan.debtor_name)}')">💀 Mark Bad Debt</button>` : ''}
-        ${isBadDebt ? `<button class="btn btn-secondary btn-sm" onclick="undoBadDebt(${loan.id}, '${esc(loan.debtor_name)}')">↩️ Undo Bad Debt</button>` : ''}
+        ${!isExtended && !isBadDebt ? `<button class="btn btn-primary btn-sm" onclick="openRepayModal(${loan.id})">+ Add Payment</button>` : ''}
+        ${loan.status === 'active' ? `<button class="btn btn-secondary btn-sm" style="border-color:var(--baddebt);color:#ff6b6b" onclick="markBadDebt(${loan.id})">💀 Mark Bad Debt</button>` : ''}
+        ${isBadDebt ? `<button class="btn btn-secondary btn-sm" onclick="undoBadDebt(${loan.id})">↩️ Undo Bad Debt</button>` : ''}
       </div>
     </div>
     ${repayments.length ? `<div class="table-wrap"><table>
@@ -2555,7 +2556,24 @@ async function openLoanDetail(loanId) {
 // ════════════════════════════════════════════════
 // DEBTOR DETAIL MODAL
 // ════════════════════════════════════════════════
-async function openDebtorDetail(debtorId, name) {
+// Look up a debtor / loan by id from state (refreshing if it isn't cached).
+async function findDebtor(id) {
+  let d = state.debtors.find(x => x.id === id);
+  if (!d) { await refreshState(); d = state.debtors.find(x => x.id === id); }
+  return d;
+}
+async function findLoan(id) {
+  let l = state.loans.find(x => x.id === id) || state.allLoans.find(x => x.id === id);
+  if (!l) { await refreshState(); await refreshAllLoans(); l = state.loans.find(x => x.id === id) || state.allLoans.find(x => x.id === id); }
+  return l;
+}
+// IPC errors arrive as "Error invoking remote method 'x': Error: message".
+const errMsg = (e) => String((e && e.message) || e).replace(/^Error invoking remote method '[^']*':\s*(Error:\s*)?/, '');
+
+async function openDebtorDetail(debtorId) {
+  const debtor = await findDebtor(debtorId);
+  if (!debtor) return toast('Debtor not found', 'error');
+  const name = debtor.name;
   const loans = await window.api.getLoansByDebtor(debtorId);
   document.getElementById('debtor-detail-title').innerHTML = `${esc(name)} — Loan History <span class="modal-close" onclick="closeModal('modal-debtor-detail')">×</span>`;
   document.getElementById('debtor-detail-body').innerHTML = loans.length ? `
@@ -2742,14 +2760,17 @@ async function submitExtension() {
     toast('Loan extended successfully', 'success');
     await loadPage(currentPage());
   } catch (e) {
-    toast('Error extending loan: ' + e.message, 'error');
+    toast('Error extending loan: ' + errMsg(e), 'error');
   }
 }
 
 // ════════════════════════════════════════════════
 // BAD DEBT
 // ════════════════════════════════════════════════
-async function markBadDebt(loanId, debtorName) {
+async function markBadDebt(loanId) {
+  const loan = await findLoan(loanId);
+  if (!loan) return toast('Loan not found', 'error');
+  const debtorName = loan.debtor_name;
   const ok = await showConfirm(`Mark this loan for ${debtorName} as bad debt? It will be moved out of Active Loans. This can be undone later from Loan History.`);
   if (!ok) return;
   try {
@@ -2762,7 +2783,10 @@ async function markBadDebt(loanId, debtorName) {
   }
 }
 
-async function undoBadDebt(loanId, debtorName) {
+async function undoBadDebt(loanId) {
+  const loan = await findLoan(loanId);
+  if (!loan) return toast('Loan not found', 'error');
+  const debtorName = loan.debtor_name;
   const ok = await showConfirm(`Undo bad debt status for ${debtorName}'s loan? It will be restored to Active.`);
   if (!ok) return;
   try {
@@ -2801,9 +2825,11 @@ async function submitDebtor() {
 // ════════════════════════════════════════════════
 // REPAYMENTS
 // ════════════════════════════════════════════════
-function openRepayModal(loanId, debtorName, balance) {
+async function openRepayModal(loanId) {
+  const loan = await findLoan(loanId);
+  if (!loan) return toast('Loan not found', 'error');
   document.getElementById('repay-loan-id').value = loanId;
-  document.getElementById('repay-loan-info').textContent = `Loan for ${debtorName} — Balance: ${fmt(balance)}`;
+  document.getElementById('repay-loan-info').textContent = `Loan for ${loan.debtor_name} — Balance: ${fmt(loan.balance)}`;
   document.getElementById('repay-amount').value = '';
   document.getElementById('repay-date').value = today();
   document.getElementById('repay-notes').value = '';
@@ -2847,17 +2873,21 @@ async function submitRepayment() {
     }
     await loadPage(currentPage());
   } catch (e) {
-    toast('Error recording repayment: ' + e.message, 'error');
+    toast('Error recording repayment: ' + errMsg(e), 'error');
   }
 }
 
 async function deleteRepayment(repId, loanId) {
   const ok = await showConfirm('Delete this repayment record?');
   if (!ok) return;
-  await window.api.deleteRepayment(repId);
-  toast('Repayment deleted', 'info');
-  closeModal('modal-loan-detail');
-  await loadPage(currentPage());
+  try {
+    await window.api.deleteRepayment(repId);
+    toast('Repayment deleted', 'info');
+    closeModal('modal-loan-detail');
+    await loadPage(currentPage());
+  } catch (e) {
+    toast('Could not delete repayment: ' + errMsg(e), 'error');
+  }
 }
 
 // ════════════════════════════════════════════════
@@ -2866,10 +2896,14 @@ async function deleteRepayment(repId, loanId) {
 async function deleteLoan(id) {
   const ok = await showConfirm('Delete this loan and all its repayment records? This cannot be undone.');
   if (!ok) return;
-  await window.api.deleteLoan(id);
-  closeModal('modal-loan-detail');
-  toast('Loan deleted', 'info');
-  await loadPage(currentPage());
+  try {
+    await window.api.deleteLoan(id);
+    closeModal('modal-loan-detail');
+    toast('Loan deleted', 'info');
+    await loadPage(currentPage());
+  } catch (e) {
+    toast('Could not delete loan: ' + errMsg(e), 'error');
+  }
 }
 
 // ════════════════════════════════════════════════
@@ -2903,12 +2937,27 @@ async function submitEditDebtor() {
   }
 }
 
-async function deleteDebtor(id, name) {
-  const ok = await showConfirm(`Delete debtor "${name}"? This will not delete existing loans.`);
+async function deleteDebtor(id) {
+  const debtor = await findDebtor(id);
+  if (!debtor) return toast('Debtor not found', 'error');
+  const ok = await showConfirm(`Delete debtor "${debtor.name}"? Debtors that still have loans can't be deleted.`);
   if (!ok) return;
-  await window.api.deleteDebtor(id);
-  toast('Debtor deleted', 'info');
-  await loadPage(currentPage());
+  try {
+    await window.api.deleteDebtor(id);
+    toast('Debtor deleted', 'info');
+    await loadPage(currentPage());
+  } catch (e) {
+    toast('Could not delete debtor: ' + errMsg(e), 'error');
+  }
+}
+
+async function exportBackup() {
+  try {
+    const r = await window.api.exportBackup();
+    if (r && !r.canceled) toast('Backup saved to ' + r.filePath, 'success');
+  } catch (e) {
+    toast('Backup failed: ' + errMsg(e), 'error');
+  }
 }
 
 // ════════════════════════════════════════════════

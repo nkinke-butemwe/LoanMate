@@ -1,6 +1,8 @@
 const { app, BrowserWindow, ipcMain, dialog } = require('electron');
 const path = require('path');
 const fs = require('fs');
+const os = require('os');
+const { pathToFileURL } = require('url');
 const sqlite3 = require('sqlite3').verbose();
 const packageJson = require('./package.json');
 
@@ -33,6 +35,9 @@ function connectDatabase() {
   console.log('🗄️ Connected to:', dbPath);
 
   db.serialize(() => {
+    // Enforce foreign keys (off by default in SQLite, per connection).
+    db.run('PRAGMA foreign_keys = ON');
+
     db.run(`CREATE TABLE IF NOT EXISTS debtors (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       name TEXT NOT NULL,
@@ -88,6 +93,32 @@ function connectDatabase() {
     db.run(`ALTER TABLE loans ADD COLUMN new_principal REAL DEFAULT 0`, () => {});
     db.run(`ALTER TABLE loans ADD COLUMN new_charges REAL DEFAULT 0`, () => {});
   });
+
+  // Daily safety copy of the database (after the schema is in place).
+  db.serialize(() => { backupOnStartup(folder, safeName).catch(e => console.error('Backup failed:', e)); });
+}
+
+// ── BACKUPS ────────────────────────────────────────────────────
+const MAX_BACKUPS = 10;
+
+// Consistent snapshot of the live database into `destPath` (VACUUM INTO
+// refuses to overwrite, so any existing file is removed first).
+async function snapshotDatabase(destPath) {
+  if (fs.existsSync(destPath)) fs.unlinkSync(destPath);
+  await dbRun(`VACUUM INTO '${destPath.replace(/'/g, "''")}'`);
+}
+
+// One backup per day (the latest startup that day wins); keeps the newest MAX_BACKUPS.
+async function backupOnStartup(folder, safeName) {
+  const dir = path.join(folder, 'backups');
+  fs.mkdirSync(dir, { recursive: true });
+  await snapshotDatabase(path.join(dir, `${safeName}-${localDateStr()}.db`));
+  const old = fs.readdirSync(dir)
+    .filter(f => /^.+-\d{4}-\d{2}-\d{2}\.db$/.test(f))
+    .sort()
+    .reverse()
+    .slice(MAX_BACKUPS);
+  for (const f of old) fs.unlinkSync(path.join(dir, f));
 }
 
 // ── DB HELPERS ─────────────────────────────────────────────────
@@ -115,13 +146,41 @@ function dbGet(sql, params = []) {
   });
 }
 
+// Local (not UTC) calendar date as yyyy-mm-dd.
+function localDateStr(d = new Date()) {
+  return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+}
+
+// Money is stored as REAL, so round to 2 decimals before comparing amounts.
+const round2 = (n) => Math.round((Number(n) || 0) * 100) / 100;
+
+// Runs `fn` inside BEGIN/COMMIT, rolling back on any error. Transactions are
+// queued so two IPC calls can never interleave inside the single connection.
+let txQueue = Promise.resolve();
+function withTransaction(fn) {
+  const run = async () => {
+    await dbRun('BEGIN');
+    try {
+      const result = await fn();
+      await dbRun('COMMIT');
+      return result;
+    } catch (e) {
+      try { await dbRun('ROLLBACK'); } catch (_) { /* already rolled back */ }
+      throw e;
+    }
+  };
+  const p = txQueue.then(run, run);
+  txQueue = p.catch(() => {});
+  return p;
+}
+
 // Shared loan SELECT fragment (reused for active and all loans)
 const LOAN_SELECT = `
   SELECT l.*, d.name as debtor_name,
     COALESCE((SELECT SUM(r.amount) FROM repayments r WHERE r.loan_id=l.id),0) as total_repaid,
     l.repayment_amount - COALESCE((SELECT SUM(r.amount) FROM repayments r WHERE r.loan_id=l.id),0) as balance,
     (l.repayment_amount - l.loan_amount - l.transfer_charges) as interest,
-    CASE WHEN l.due_date != '' AND l.due_date < date('now') AND l.status='active' THEN 1 ELSE 0 END as is_overdue
+    CASE WHEN l.due_date != '' AND l.due_date < date('now','localtime') AND l.status='active' THEN 1 ELSE 0 END as is_overdue
   FROM loans l
   JOIN debtors d ON d.id = l.debtor_id
 `;
@@ -158,6 +217,10 @@ ipcMain.handle('update-debtor', async (_, data) => {
 });
 
 ipcMain.handle('delete-debtor', async (_, id) => {
+  const row = await dbGet('SELECT COUNT(*) as n FROM loans WHERE debtor_id=?', [id]);
+  if (row && row.n > 0) {
+    throw new Error(`This debtor still has ${row.n} loan${row.n === 1 ? '' : 's'}. Delete those loans first.`);
+  }
   return await dbRun('DELETE FROM debtors WHERE id=?', [id]);
 });
 
@@ -176,7 +239,7 @@ ipcMain.handle('get-loans-by-debtor', async (_, debtor_id) => {
     SELECT l.*,
       COALESCE((SELECT SUM(r.amount) FROM repayments r WHERE r.loan_id=l.id),0) as total_repaid,
       l.repayment_amount - COALESCE((SELECT SUM(r.amount) FROM repayments r WHERE r.loan_id=l.id),0) as balance,
-      CASE WHEN l.due_date != '' AND l.due_date < date('now') AND l.status='active' THEN 1 ELSE 0 END as is_overdue
+      CASE WHEN l.due_date != '' AND l.due_date < date('now','localtime') AND l.status='active' THEN 1 ELSE 0 END as is_overdue
     FROM loans l
     WHERE l.debtor_id=?
     ORDER BY l.loan_date DESC
@@ -216,8 +279,22 @@ ipcMain.handle('close-loan-early', async (_, { id, due_date }) => {
 });
 
 ipcMain.handle('delete-loan', async (_, id) => {
-  await dbRun('DELETE FROM repayments WHERE loan_id=?', [id]);
-  return await dbRun('DELETE FROM loans WHERE id=?', [id]);
+  return await withTransaction(async () => {
+    const loan = await dbGet('SELECT id, parent_loan_id FROM loans WHERE id=?', [id]);
+    if (!loan) throw new Error('Loan not found');
+    const child = await dbGet('SELECT COUNT(*) as n FROM loans WHERE parent_loan_id=?', [id]);
+    if (child && child.n > 0) {
+      throw new Error('This loan has been extended. Delete its extension(s) first.');
+    }
+    await dbRun('DELETE FROM repayments WHERE loan_id=?', [id]);
+    const result = await dbRun('DELETE FROM loans WHERE id=?', [id]);
+    // Deleting an extension puts its parent back in play (it was only
+    // 'extended' because of this loan).
+    if (loan.parent_loan_id) {
+      await dbRun(`UPDATE loans SET status='active' WHERE id=? AND status='extended'`, [loan.parent_loan_id]);
+    }
+    return result;
+  });
 });
 
 // BAD DEBT
@@ -258,13 +335,15 @@ ipcMain.handle('extend-loan', async (_, data) => {
   // that was actually newly disbursed at this extension (not the rolled-over
   // balance), so analytics can report accurate total capital deployed without
   // double-counting money that was never re-given to the debtor.
-  const result = await dbRun(
-    `INSERT INTO loans (debtor_id, loan_date, due_date, loan_amount, transfer_charges, repayment_amount, notes, parent_loan_id, new_principal, new_charges)
-     VALUES (?,?,?,?,?,?,?,?,?,?)`,
-    [original.debtor_id, loan_date, due_date || '', loan_amount, transfer_charges || 0, repayment_amount, notes || null, original_loan_id, new_principal || 0, new_charges || 0]
-  );
-  await dbRun('UPDATE loans SET status=? WHERE id=?', ['extended', original_loan_id]);
-  return result;
+  return await withTransaction(async () => {
+    const result = await dbRun(
+      `INSERT INTO loans (debtor_id, loan_date, due_date, loan_amount, transfer_charges, repayment_amount, notes, parent_loan_id, new_principal, new_charges)
+       VALUES (?,?,?,?,?,?,?,?,?,?)`,
+      [original.debtor_id, loan_date, due_date || '', loan_amount, transfer_charges || 0, repayment_amount, notes || null, original_loan_id, new_principal || 0, new_charges || 0]
+    );
+    await dbRun('UPDATE loans SET status=? WHERE id=?', ['extended', original_loan_id]);
+    return result;
+  });
 });
 
 // Fetch the full chain of a loan: its root original loan plus every
@@ -298,30 +377,34 @@ ipcMain.handle('get-repayments-by-loan', async (_, loan_id) => {
 
 ipcMain.handle('add-repayment', async (_, data) => {
   const { loan_id, amount, repayment_date, notes } = data;
-  const result = await dbRun(
-    'INSERT INTO repayments (loan_id, amount, repayment_date, notes) VALUES (?,?,?,?)',
-    [loan_id, amount, repayment_date, notes || null]
-  );
-  // Auto-close loan if fully repaid
-  const loan = await dbGet('SELECT repayment_amount FROM loans WHERE id=?', [loan_id]);
-  const paid = await dbGet('SELECT COALESCE(SUM(amount),0) as total FROM repayments WHERE loan_id=?', [loan_id]);
-  if (loan && paid && paid.total >= loan.repayment_amount) {
-    await dbRun('UPDATE loans SET status=? WHERE id=?', ['closed', loan_id]);
-  }
-  return result;
+  return await withTransaction(async () => {
+    const result = await dbRun(
+      'INSERT INTO repayments (loan_id, amount, repayment_date, notes) VALUES (?,?,?,?)',
+      [loan_id, amount, repayment_date, notes || null]
+    );
+    // Auto-close loan if fully repaid
+    const loan = await dbGet('SELECT repayment_amount FROM loans WHERE id=?', [loan_id]);
+    const paid = await dbGet('SELECT COALESCE(SUM(amount),0) as total FROM repayments WHERE loan_id=?', [loan_id]);
+    if (loan && paid && round2(paid.total) >= round2(loan.repayment_amount)) {
+      await dbRun('UPDATE loans SET status=? WHERE id=?', ['closed', loan_id]);
+    }
+    return result;
+  });
 });
 
 ipcMain.handle('delete-repayment', async (_, id) => {
-  const rep = await dbGet('SELECT loan_id FROM repayments WHERE id=?', [id]);
-  await dbRun('DELETE FROM repayments WHERE id=?', [id]);
-  // Re-open loan if it was closed
-  if (rep) {
-    const loan = await dbGet('SELECT repayment_amount FROM loans WHERE id=?', [rep.loan_id]);
-    const paid = await dbGet('SELECT COALESCE(SUM(amount),0) as total FROM repayments WHERE loan_id=?', [rep.loan_id]);
-    if (loan && paid && paid.total < loan.repayment_amount) {
-      await dbRun('UPDATE loans SET status=? WHERE id=?', ['active', rep.loan_id]);
+  await withTransaction(async () => {
+    const rep = await dbGet('SELECT loan_id FROM repayments WHERE id=?', [id]);
+    await dbRun('DELETE FROM repayments WHERE id=?', [id]);
+    // Re-open the loan only if it was closed (never touch extended / bad_debt loans)
+    if (rep) {
+      const loan = await dbGet('SELECT repayment_amount, status FROM loans WHERE id=?', [rep.loan_id]);
+      const paid = await dbGet('SELECT COALESCE(SUM(amount),0) as total FROM repayments WHERE loan_id=?', [rep.loan_id]);
+      if (loan && paid && loan.status === 'closed' && round2(paid.total) < round2(loan.repayment_amount)) {
+        await dbRun('UPDATE loans SET status=? WHERE id=?', ['active', rep.loan_id]);
+      }
     }
-  }
+  });
   return { success: true };
 });
 
@@ -354,7 +437,7 @@ ipcMain.handle('get-analytics', async () => {
     JOIN debtors d ON d.id = l.debtor_id
   `);
   const totalDebtorsRow = await dbGet('SELECT COUNT(*) as v FROM debtors');
-  const todayStr = new Date().toISOString().slice(0, 10);
+  const todayStr = localDateStr();
   const allRepayments = await dbAll('SELECT id, loan_id, amount, repayment_date FROM repayments');
   const repsByLoan = new Map();
   for (const r of allRepayments) {
@@ -527,6 +610,18 @@ ipcMain.handle('delete-chain', async (_, id) => {
   return await dbRun('DELETE FROM chains WHERE chainID=?', [id]);
 });
 
+// BACKUP EXPORT
+// Saves a consistent copy of the database wherever the user chooses.
+ipcMain.handle('export-backup', async () => {
+  const { canceled, filePath } = await dialog.showSaveDialog(mainWindow, {
+    defaultPath: path.join(app.getPath('documents'), `loan-mate-backup-${localDateStr()}.db`),
+    filters: [{ name: 'SQLite Database', extensions: ['db'] }]
+  });
+  if (canceled || !filePath) return { canceled: true };
+  await snapshotDatabase(filePath);
+  return { canceled: false, filePath };
+});
+
 // LOAN LEDGER EXPORT
 // Shows a Save dialog, then writes either a PNG (data URL from the renderer's
 // canvas) or an A4 PDF rendered from an HTML string in a hidden window.
@@ -538,13 +633,26 @@ ipcMain.handle('export-ledger', async (_, { type, name, html, dataUrl }) => {
   });
   if (canceled || !filePath) return { canceled: true };
   if (isPdf) {
+    // Load the ledger from a temp file (not a data: URL) so file:// font URLs resolve.
+    const fontUrl = f => pathToFileURL(path.join(__dirname, 'fonts', f)).href;
+    const fontCss = `
+@font-face{font-family:"SF Pro Display";src:url("${fontUrl('SFPRODISPLAYREGULAR.OTF')}") format("opentype");font-weight:400}
+@font-face{font-family:"SF Pro Display";src:url("${fontUrl('SFPRODISPLAYMEDIUM.OTF')}") format("opentype");font-weight:500}
+@font-face{font-family:"SF Pro Display";src:url("${fontUrl('SFPRODISPLAYBOLD.OTF')}") format("opentype");font-weight:700}`;
+    const fullHtml = html
+      .replace('<style>', '<style>' + fontCss)
+      .replace("font-family:'Segoe UI',Arial,sans-serif", "font-family:'SF Pro Display','Segoe UI',Arial,sans-serif");
+    const tmp = path.join(os.tmpdir(), `loanmate-ledger-${Date.now()}.html`);
+    fs.writeFileSync(tmp, fullHtml, 'utf8');
     const win = new BrowserWindow({ show: false, webPreferences: { sandbox: true } });
     try {
-      await win.loadURL('data:text/html;charset=utf-8,' + encodeURIComponent(html));
+      await win.loadFile(tmp);
+      await win.webContents.executeJavaScript('document.fonts.ready.then(() => true)');
       const buf = await win.webContents.printToPDF({ pageSize: 'A4', printBackground: true, preferCSSPageSize: true });
       fs.writeFileSync(filePath, buf);
     } finally {
       win.destroy();
+      fs.unlink(tmp, () => {});
     }
   } else {
     fs.writeFileSync(filePath, Buffer.from(dataUrl.replace(/^data:image\/png;base64,/, ''), 'base64'));

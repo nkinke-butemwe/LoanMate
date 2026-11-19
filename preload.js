@@ -41,6 +41,9 @@ contextBridge.exposeInMainWorld('api', {
   saveChain: (data) => ipcRenderer.invoke('save-chain', data),
   deleteChain: (id) => ipcRenderer.invoke('delete-chain', id),
 
+  // Backup
+  exportBackup: () => ipcRenderer.invoke('export-backup'),
+
   // Versions
   versions: {
     node: () => process.versions.node,

@@ -4,6 +4,32 @@ All notable changes to LoanMate will be documented in this file.
 
 ---
 
+## [Unreleased]
+
+### Fixed
+- **Ledger PDF now uses SF Pro Display.** The PDF is rendered from a temp file with `@font-face` rules and waits for fonts to load before printing.
+- **Sharper logo.** `logo.js` now holds a cropped, transparent 956x667 PNG (was 385x269), so the logo stays crisp in PDF and PNG exports.
+
+---
+
+## [1.15.0] — Data integrity fixes and backups
+
+### Fixed
+- **Deleting a repayment no longer reactivates loans it shouldn't.** A loan is only reopened if it is currently `closed`; `extended` and `bad_debt` loans keep their status.
+- **Names with apostrophes (e.g. O'Brien) no longer break buttons.** Repay, Bad Debt, Undo Bad Debt, View Loans and Delete Debtor now pass only the id and look the name up from app state.
+- **Dates use the local day, not UTC**, in the renderer (`today()`), in `get-analytics`, and in the SQL overdue checks (`date('now','localtime')`).
+- **Float-safe money comparisons**: amounts are rounded to 2 decimals before checking whether a loan is fully repaid or should be reopened.
+
+### Changed
+- **Foreign keys are enforced** (`PRAGMA foreign_keys = ON`).
+- **Deletes are safer**: a debtor that still has loans cannot be deleted, and a loan with extensions cannot be deleted. Deleting an extension puts its parent loan back to `active`. The UI shows the reason when a delete is refused.
+- **Multi-step writes are atomic**: `extend-loan`, `delete-loan`, `add-repayment` (auto-close) and `delete-repayment` run in a transaction with rollback on error.
+
+### Added
+- **Automatic backup** on startup: one dated snapshot per day in `loan-mate-db/backups/`, keeping the latest 10.
+- **Export Backup** button in the sidebar to save a copy of the database anywhere.
+
+
 ## [1.14.0] — Running chains (open-ended repayment date)
 
 ### Added
